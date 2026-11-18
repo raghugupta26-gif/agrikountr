@@ -6,3 +6,4 @@ mobile/www/
 mobile/android/
 mobile/assets/
 *.log
+package-lock.json
