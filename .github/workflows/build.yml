@@ -1,0 +1,84 @@
+name: Build apps
+
+on:
+  push:
+    branches: [ main ]
+  workflow_dispatch:
+
+jobs:
+  windows:
+    name: Windows installer
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Copy shared screens into the desktop app
+        shell: bash
+        run: |
+          rm -rf desktop/web
+          cp -r web desktop/web
+      - name: Install
+        working-directory: desktop
+        run: npm install --no-audit --no-fund
+      - name: Build installer
+        working-directory: desktop
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: "false"
+        run: npx electron-builder --win --x64 --publish never
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KrishiKhata-Windows-Setup
+          path: desktop/dist/*.exe
+          if-no-files-found: error
+
+  android:
+    name: Android APK
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@v3
+      - name: Install
+        working-directory: mobile
+        run: npm install --no-audit --no-fund
+      - name: Add Android project and copy screens
+        working-directory: mobile
+        run: |
+          npm run prepare-web
+          npx cap add android
+          npx cap sync android
+      - name: App icon
+        continue-on-error: true
+        working-directory: mobile
+        run: |
+          mkdir -p assets
+          cp ../desktop/build/icon.png assets/icon-only.png
+          cp ../desktop/build/icon.png assets/icon-foreground.png
+          npx --yes @capacitor/assets generate --android --iconBackgroundColor '#1d5c3a' --splashBackgroundColor '#1d5c3a'
+      - name: Allow shop Wi-Fi (http), camera and microphone
+        working-directory: mobile/android
+        run: |
+          M=app/src/main/AndroidManifest.xml
+          sed -i 's|<application|<application android:usesCleartextTraffic="true"|' $M
+          sed -i 's|<uses-permission android:name="android.permission.INTERNET" />|<uses-permission android:name="android.permission.INTERNET" />\n    <uses-permission android:name="android.permission.CAMERA" />\n    <uses-permission android:name="android.permission.RECORD_AUDIO" />\n    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />\n    <queries><intent><action android:name="android.speech.RecognitionService" /></intent><intent><action android:name="android.intent.action.TTS_SERVICE" /></intent></queries>|' $M
+          cat $M
+      - name: Build APK
+        working-directory: mobile/android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+      - name: Rename APK
+        run: cp mobile/android/app/build/outputs/apk/debug/app-debug.apk KrishiKhata.apk
+      - uses: actions/upload-artifact@v4
+        with:
+          name: KrishiKhata-Android-APK
+          path: KrishiKhata.apk
+          if-no-files-found: error

@@ -1,0 +1,8 @@
+node_modules/
+desktop/dist/
+desktop/web/
+desktop/data/
+mobile/www/
+mobile/android/
+mobile/assets/
+*.log
