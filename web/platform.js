@@ -57,6 +57,8 @@ async function loadStore(){
   for(const [k,v] of await idbAll('meta')){ if(k==='pending') pending=v||[]; if(k==='cursor') cursor=v||0; }
 }
 const saveMeta = () => { idbPut('meta','pending',pending); idbPut('meta','cursor',cursor); };
+/* after a restore on the shop computer: forget this screen's copy and fetch everything again */
+function resetLocal(){ docs.clear(); pending=[]; cursor=0; return new Promise(res=>{ if(!idb) return res(); try{ const tx=idb.transaction(['docs','meta'],'readwrite'); tx.objectStore('docs').clear(); tx.objectStore('meta').clear(); tx.oncomplete=()=>res(); tx.onerror=()=>res(); }catch(e){ res(); } }); }
 
 /* ---------- listeners ---------- */
 const docL = new Map(), colL = new Map();
@@ -299,9 +301,9 @@ window.claude = { use: async(name)=>{
 }};
 
 /* ---------- pairing and settings screen (outside the app's own screens) ---------- */
-const KK = window.KK = { get mode(){ return MODE; }, get online(){ return online; }, get devCode(){ return MODE==='paired'?(cfg.devCode||''):''; }, cfg, ocr, syncNow, open:openLink, ewb:ewbApi, needsPairing:false };
+const KK = window.KK = { get mode(){ return MODE; }, get online(){ return online; }, get devCode(){ return MODE==='paired'?(cfg.devCode||''):''; }, cfg, cloud:{ status:()=> (MODE==='paired'||MODE==='desktop') ? api('/api/cloud/status',{timeout:5000}).catch(()=>null) : Promise.resolve(null) }, ocr, syncNow, open:openLink, ewb:ewbApi, needsPairing:false };
 function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
-function closeLink(){ const o=document.getElementById('kkLink'); if(o) o.remove(); }
+function closeLink(){ const o=document.getElementById('kkLink'); if(o){ o.remove(); try{ window.dispatchEvent(new Event('kk-panel-closed')); }catch(e){} } }
 async function openLink(){
   await init(); closeLink();
   const box = el(`<div id="kkLink" class="overlay" style="z-index:50"><div class="sheet" role="dialog" aria-modal="true" style="gap:12px"></div></div>`);
@@ -387,7 +389,8 @@ async function desktopPanel(s){
       <label class="f">AI key (Anthropic)<input id="kkKey" type="password" value="${info.hasKey?'••••••••':''}" placeholder="sk-ant-..."></label>
       <div class="note">${info.hasKey?'✓ Key saved on this computer. Phones use it through this computer; the key never goes to phones.':'Needed for reading bill photos. Get one at console.anthropic.com.'}</div>
       <button class="act blue" id="kkKeySave">సేవ్ · Save key</button></div>
-    <div class="card"><h3>బ్యాకప్ · Backup</h3><div class="note">Automatic copy every day in: <b>${esc(info.backupDir||'')}</b>${info.lastBackup?' · last: '+esc(info.lastBackup):''}</div>
+    <div class="card" id="kkCloud"></div>
+    <div class="card"><h3>బ్యాకప్ · Backup on this computer</h3><div class="note">Automatic copy every day in: <b>${esc(info.backupDir||'')}</b>${info.lastBackup?' · last: '+esc(info.lastBackup):''}</div>
       <label class="f">Extra backup folder (Google Drive / pen drive)<input id="kkBk" value="${esc(info.extraBackupDir||'')}" placeholder="G:\\My Drive\\KrishiKhata"></label>
       <button class="act ghost" id="kkBkSave">సేవ్ · Save folder</button><button class="act ghost" id="kkBkNow">ఇప్పుడే బ్యాకప్ · Back up now</button></div>
     <button class="act ghost" id="kkX">మూసివేయండి · Close</button>`;
@@ -408,7 +411,70 @@ async function desktopPanel(s){
   s.querySelector('#kkBkSave').onclick=async()=>{ await api('/api/admin',{method:'POST', body:JSON.stringify({extraBackupDir:s.querySelector('#kkBk').value.trim()})}); desktopPanel(s); };
   s.querySelector('#kkBkNow').onclick=async()=>{ await api('/api/backup-now',{method:'POST', body:'{}'}); desktopPanel(s); };
   s.querySelector('#kkX').onclick=closeLink;
-  newCode(); devs();
+  newCode(); devs(); cloudCard(s.querySelector('#kkCloud'));
+}
+
+/* ---------- Google Drive backup card (shop computer only) ---------- */
+const when = iso => iso ? new Date(iso).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}) : '';
+async function cloudCard(box, view){
+  if(!box) return;
+  let st={}; try{ st=await api('/api/cloud/status'); }catch(e){ box.innerHTML='<div class="note">Could not read cloud backup status.</div>'; return; }
+  const msg=(t,bad)=>{ const m=box.querySelector('#kcMsg'); if(m){ m.textContent=t; m.style.color=bad?'#b3261e':''; } };
+  const head=`<h3>☁️ గూగుల్ డ్రైవ్ బ్యాకప్ · Google Drive backup</h3>`;
+  if(view==='restore') return restoreView(box, st);
+  if(!st.configured){ box.innerHTML=head+`<div class="note">This copy of the app was built without a Google key, so Drive backup is off. Use the extra backup folder below meanwhile.</div>`; return; }
+  let html=head;
+  if(st.safe) html+=`<div style="background:#e6f4ea;border-radius:10px;padding:10px;font-weight:700;color:#1e6b34">✓ మీ డేటా భద్రం · Your data is safe<br><span style="font-weight:400">Last saved to Google Drive ${esc(when(st.lastOk))}${st.email?' · '+esc(st.email):''}</span></div>`;
+  else if(st.connected&&st.hasPin) html+=`<div style="background:#fdecea;border-radius:10px;padding:10px;font-weight:700;color:#b3261e">⚠ Last Drive backup: ${st.lastOk?esc(when(st.lastOk)):'never'}${st.lastError?'<br><span style="font-weight:400">'+esc(st.lastError)+'</span>':''}</div>`;
+  if(!st.hasPin){
+    html+=`<p class="note"><b>Step 1.</b> Choose a backup PIN, 6 to 12 digits. Write it on paper and keep it with your licences. Without this PIN nobody can open the backup, not even us.</p>
+      <div class="fgrid"><label class="f">PIN<input id="kcP1" type="password" inputmode="numeric" maxlength="12" autocomplete="new-password"></label><label class="f">PIN again<input id="kcP2" type="password" inputmode="numeric" maxlength="12" autocomplete="new-password"></label></div>
+      <button class="act green" id="kcPin">PIN పెట్టండి · Set PIN</button>`;
+  } else if(!st.connected){
+    html+=`<p class="note">${st.signInNeeded?'<b style="color:#b3261e">Google sign-in has expired.</b> ':'<b>Step 2.</b> '}Sign in with the shop's Google account (Gmail). The browser opens. Press <b>Allow</b>, then come back here.</p>
+      <button class="act blue" id="kcIn">గూగుల్‌తో లాగిన్ · Sign in with Google</button>`;
+  } else {
+    html+=`<div class="btnrow"><button class="act ghost" id="kcNow">ఇప్పుడే · Back up now</button><button class="act ghost" id="kcRe">తిరిగి తెచ్చు · Restore</button></div>
+      <details><summary class="note">More</summary><button class="act ghost" id="kcPinCh">Change PIN</button><button class="act ghost" style="color:#b3261e" id="kcOut">Disconnect Google Drive</button></details>`;
+  }
+  if(!st.connected) html+=`<button class="act ghost" id="kcRe">కొత్త కంప్యూటర్? పాత డేటా తెచ్చు · New computer? Restore old data</button>`;
+  html+=`<div class="note" id="kcMsg"></div>`;
+  box.innerHTML=html;
+  const on=(id,f)=>{ const b=box.querySelector('#'+id); if(b) b.onclick=f; };
+  const call=async(path,b,busyText)=>{ msg(busyText||'…'); try{ const r=await api(path,{method:'POST', body:JSON.stringify(b||{}), timeout:180000}); msg(''); return r; }catch(e){ let m=e&&e.message; try{ m=JSON.parse(m).error||m; }catch(x){} msg(m||'Something went wrong',true); throw e; } };
+  on('kcPin', async()=>{ try{ await call('/api/cloud/pin',{pin:box.querySelector('#kcP1').value, pin2:box.querySelector('#kcP2').value},'Saving PIN…'); cloudCard(box); }catch(e){} });
+  on('kcPinCh', ()=>{ box.innerHTML=head+`<p class="note">New PIN for future backups. Old backups still open with the old PIN.</p><div class="fgrid"><label class="f">New PIN<input id="kcP1" type="password" inputmode="numeric" maxlength="12"></label><label class="f">Again<input id="kcP2" type="password" inputmode="numeric" maxlength="12"></label></div><button class="act green" id="kcPin">సేవ్ · Save</button><button class="act ghost" id="kcBack">వెనక్కి · Back</button><div class="note" id="kcMsg"></div>`;
+    on('kcPin', async()=>{ try{ await call('/api/cloud/pin',{pin:box.querySelector('#kcP1').value, pin2:box.querySelector('#kcP2').value}); await call('/api/cloud/backup',{},'Backing up with the new PIN…'); }catch(e){} cloudCard(box); }); on('kcBack', ()=>cloudCard(box)); });
+  on('kcIn', async()=>{ try{ const r=await call('/api/cloud/signin',{},'Opening the browser…'); if(r.url && !r.opened) window.open(r.url,'_blank'); msg('Finish in the browser, then come back.');
+    const t0=Date.now(); const poll=setInterval(async()=>{ try{ const s2=await api('/api/cloud/status'); if(s2.connected || Date.now()-t0>10*60e3 || !document.body.contains(box)){ clearInterval(poll); cloudCard(box); } }catch(e){} }, 2500); }catch(e){} });
+  on('kcNow', async()=>{ try{ await call('/api/cloud/backup',{},'Saving to Google Drive…'); }catch(e){} cloudCard(box); });
+  on('kcOut', async()=>{ if(box.dataset.sure!=='1'){ box.dataset.sure='1'; msg('Tap Disconnect again to stop Drive backups.',true); return; } box.dataset.sure=''; try{ await call('/api/cloud/disconnect'); }catch(e){} cloudCard(box); });
+  on('kcRe', ()=>cloudCard(box,'restore'));
+}
+async function restoreView(box, st){
+  const head=`<h3>☁️ పాత డేటా తెచ్చు · Restore from Google Drive</h3>`;
+  if(!st.connected){ box.innerHTML=head+`<p class="note">First sign in with the Google account that has the backups.</p><button class="act blue" id="kcIn2">Sign in with Google</button><button class="act ghost" id="kcBack">వెనక్కి · Back</button><div class="note" id="kcMsg"></div>`;
+    box.querySelector('#kcBack').onclick=()=>cloudCard(box);
+    box.querySelector('#kcIn2').onclick=async()=>{ try{ const r=await api('/api/cloud/signin',{method:'POST',body:'{}'}); if(r.url && !r.opened) window.open(r.url,'_blank'); box.querySelector('#kcMsg').textContent='Finish in the browser, then come back.';
+      const poll=setInterval(async()=>{ try{ const s2=await api('/api/cloud/status'); if(s2.connected||!document.body.contains(box)){ clearInterval(poll); restoreView(box, s2); } }catch(e){} }, 2500); }catch(e){ box.querySelector('#kcMsg').textContent='Could not start sign-in'; } };
+    return; }
+  box.innerHTML=head+`<div class="note">Looking in Google Drive…</div>`;
+  let list=[]; try{ list=(await api('/api/cloud/list',{timeout:60000})).list||[]; }catch(e){ box.innerHTML=head+`<div class="note" style="color:#b3261e">Could not read Google Drive. Check the internet.</div><button class="act ghost" id="kcBack">వెనక్కి · Back</button>`; box.querySelector('#kcBack').onclick=()=>cloudCard(box); return; }
+  if(!list.length){ box.innerHTML=head+`<div class="note">No Krishi Khata backups in this Google account${st.email?' ('+esc(st.email)+')':''}.</div><button class="act ghost" id="kcBack">వెనక్కి · Back</button>`; box.querySelector('#kcBack').onclick=()=>cloudCard(box); return; }
+  let pick=list[0].id;
+  box.innerHTML=head+`<div class="note">Pick a backup (newest first):</div>
+    <div class="chips" style="flex-direction:column;align-items:stretch">${list.slice(0,12).map((x,i)=>`<button class="chip ${i===0?'on':''}" data-id="${esc(x.id)}" style="text-align:left">${esc(when(x.at))}${x.shop?' · '+esc(x.shop):''}${x.docs?' · '+x.docs+' records':''}</button>`).join('')}</div>
+    <label class="f">బ్యాకప్ PIN · Backup PIN<input id="kcRP" type="password" inputmode="numeric" maxlength="12"></label>
+    <p class="note" style="color:#8a4a00">This replaces everything on this computer with the backup. What is here now is first saved in the backups folder.</p>
+    <button class="act yellow" id="kcGo">తిరిగి తెచ్చు · Restore</button><button class="act ghost" id="kcBack">వెనక్కి · Back</button><div class="note" id="kcMsg"></div>`;
+  box.querySelectorAll('[data-id]').forEach(b=>b.onclick=()=>{ pick=b.dataset.id; box.querySelectorAll('[data-id]').forEach(x=>x.classList.toggle('on',x===b)); });
+  box.querySelector('#kcBack').onclick=()=>cloudCard(box);
+  box.querySelector('#kcGo').onclick=async()=>{
+    const m=box.querySelector('#kcMsg'); m.style.color=''; m.textContent='Opening the backup… (this takes a few seconds)';
+    try{ const r=await api('/api/cloud/restore',{method:'POST', body:JSON.stringify({id:pick, pin:box.querySelector('#kcRP').value}), timeout:180000});
+      m.textContent=`✓ Restored ${r.docs} records from ${when(r.at)}. Reloading…`; await resetLocal(); setTimeout(()=>location.reload(), 1200); }
+    catch(e){ let t=e&&e.message; try{ t=JSON.parse(t).error||t; }catch(x){} m.style.color='#b3261e'; m.textContent=t||'Could not restore'; }
+  };
 }
 function esc(s){ return String(s??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 

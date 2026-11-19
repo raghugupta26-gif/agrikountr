@@ -18,7 +18,7 @@ function createWindow(){
 }
 app.on('second-instance', ()=>{ if(win){ win.show(); win.focus(); } });
 app.whenReady().then(()=>{
-  srv = start({ dataDir: path.join(app.getPath('userData'), 'shop-data'), webDir: path.join(__dirname, 'web') });
+  srv = start({ dataDir: path.join(app.getPath('userData'), 'shop-data'), webDir: path.join(__dirname, 'web'), openUrl: url=>shell.openExternal(url) });
   srv.server.on('error', err=>{ dialog.showErrorBox('Krishi Khata', 'Could not start the shop server: '+err.message+'\nIs Krishi Khata already open?'); });
   if(!app.getLoginItemSettings().openAtLogin && process.platform==='win32'){ try{ app.setLoginItemSettings({openAtLogin:true, args:['--hidden']}); }catch(e){} }
   createWindow();
@@ -29,7 +29,7 @@ app.whenReady().then(()=>{
     tray.setContextMenu(Menu.buildFromTemplate([
       {label:'Open Krishi Khata', click:()=>{ win.show(); win.focus(); }},
       {label:'Open data folder', click:()=>shell.openPath(srv.dataDir)},
-      {label:'Back up now', click:()=>srv.backupNow()},
+      {label:'Back up now', click:()=>{ srv.backupNow(); srv.cloud.auto(true); }},
       {type:'separator'},
       {label:'Quit (phones stop syncing)', click:()=>{ quitting=true; srv.stop(); app.quit(); }}
     ]));

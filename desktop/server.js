@@ -12,6 +12,7 @@ const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
 const { makeEwb } = require('./ewb');
+const { makeCloud } = require('./cloud');
 
 const MIME = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.woff2':'font/woff2','.woff':'font/woff','.ico':'image/x-icon','.webmanifest':'application/manifest+json'};
 const MODELS = {quick:'claude-haiku-5-5', default:'claude-sonnet-5-5', complex:'claude-opus-5-5'};
@@ -46,6 +47,7 @@ function start(opts={}){
     const all = fs.readdirSync(BKD).filter(x=>/^shop-\d{4}-\d{2}-\d{2}\.json$/.test(x)).sort();
     while(all.length>30){ try{ fs.unlinkSync(path.join(BKD, all.shift())); }catch(e){ break; } }
     settings.lastBackup = new Date().toISOString(); saveSettings();
+    try{ cloud.auto(); }catch(e){}
   }
   setTimeout(backupNow, 5000); setInterval(backupNow, 6*3600*1000);
 
@@ -62,6 +64,25 @@ function start(opts={}){
   function nextDevCode(){ const used=new Set(Object.values(settings.devices).map(d=>d.code)); const A='BCDEFGHJKLMNPQRSTUVWXYZ'; for(const a of A) if(!used.has(a)) return a; for(const a of A) for(const b of A) if(!used.has(a+b)) return a+b; return 'X'; }
   for(const d of Object.values(settings.devices)) if(!d.code){ d.code=nextDevCode(); }
   const ewb = makeEwb({settings, saveSettings, log});
+  /* ---------- cloud backup (dealer's own Google Drive, locked with the shop PIN) ---------- */
+  const strip = o => { if(!o) return o; const {password, clientSecret, ...rest} = o; return rest; };
+  function restoreInto(data){
+    try{ writeAtomic(path.join(BKD, `before-restore-${new Date().toISOString().replace(/[:.]/g,'-')}.json`), JSON.stringify(store)); }catch(e){ throw Object.assign(new Error('Could not save a copy of the current data first: '+e.message), {status:500}); }
+    const docs = data.store.docs || {}; let seq = Math.max(store.seq||0, data.store.seq||0);
+    /* give every document a fresh number so connected phones fetch everything again */
+    const ordered = Object.entries(docs).sort((a,b)=>(a[1].seq||0)-(b[1].seq||0));
+    const nd = {}; for(const [k,v] of ordered) nd[k] = {...v, seq:++seq};
+    store = {seq, docs:nd}; writeAtomic(DBF, JSON.stringify(store));
+    const bs = data.settings || {};
+    if(bs.devices) for(const [id,d] of Object.entries(bs.devices)) if(!settings.devices[id]) settings.devices[id]=d;
+    if(bs.ewb && !settings.ewb) settings.ewb = strip(bs.ewb);
+    if(bs.models && !settings.models) settings.models = bs.models;
+    if(bs.shopName && !settings.shopName) settings.shopName = bs.shopName;
+    saveSettings(); broadcast('change', {seq:store.seq});
+  }
+  const cloud = makeCloud({settings, saveSettings, log, port:PORT, openUrl:opts.openUrl, google:opts.google, endpoints:opts.googleEndpoints, clientDir:opts.clientDir,
+    snapshot:()=>({shopName:shopName(), store, settings:{devices:settings.devices, ewb:strip(settings.ewb), models:settings.models, shopName:settings.shopName}}), restoreInto});
+  setTimeout(()=>cloud.auto(), 60e3); setInterval(()=>cloud.auto(), 3600e3);
   function lanAddrs(){ const out=[]; for(const list of Object.values(os.networkInterfaces())) for(const n of list||[]) if(n.family==='IPv4' && !n.internal) out.push(`${n.address}:${PORT}`); return out.length?out:[`127.0.0.1:${PORT}`]; }
 
   /* ---------- live updates (server-sent events) ---------- */
@@ -107,6 +128,13 @@ function start(opts={}){
     const p = url.pathname;
     if(req.method==='OPTIONS'){ res.writeHead(204, {'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'Content-Type, X-KK-Token, X-KK-Device','Access-Control-Allow-Methods':'GET, POST, OPTIONS'}); return res.end(); }
     try{
+      if(p==='/oauth/google'){
+        /* Google sends the browser back here after the dealer allows access */
+        const page=(ok,msg)=>{ res.writeHead(ok?200:400,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}); res.end(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Krishi Khata</title><body style="font-family:sans-serif;max-width:520px;margin:60px auto;padding:20px;text-align:center;font-size:20px"><div style="font-size:64px">${ok?'✅':'⚠️'}</div><p><b>${ok?'గూగుల్ డ్రైవ్ కలిసింది · Google Drive connected':'కలవలేదు · Not connected'}</b></p><p>${msg}</p><p style="color:#666">${ok?'You can close this tab and go back to Krishi Khata.':'Go back to Krishi Khata and try again.'}</p></body>`); };
+        if(!isLocal(req)) return page(false, 'Open this on the shop computer.');
+        try{ const st=await cloud.finishSignIn(url.searchParams); return page(true, st.email?`Backups will be saved in the Google Drive of <b>${st.email.replace(/[<>&]/g,'')}</b>.`:'Backups will be saved in your Google Drive.'); }
+        catch(e){ return page(false, String(e.message||e).replace(/[<>&]/g,'')); }
+      }
       if(p.startsWith('/api/')){
         if(p==='/api/info') return send(res, 200, {app:'krishi-khata', version:1, local:isLocal(req), shopName:shopName()});
         if(p==='/api/pair' && req.method==='POST'){
@@ -162,6 +190,7 @@ function start(opts={}){
         if(p==='/api/ewb/generate' && req.method==='POST'){ const b=await body(req,1e6); return send(res, 200, await ewb.generate(b.payload)); }
         if(p==='/api/ewb/vehicle' && req.method==='POST'){ const b=await body(req,1e5); return send(res, 200, await ewb.vehicle(b)); }
         if(p==='/api/ewb/cancel' && req.method==='POST'){ if(dev.role!=='owner') return send(res, 403, {error:'Only the owner can cancel an e-way bill'}); const b=await body(req,1e5); return send(res, 200, await ewb.cancel(b)); }
+        if(p==='/api/cloud/status'){ const st=cloud.status(); return send(res, 200, dev.local||dev.role==='owner'?st:{safe:st.safe, stale:st.stale, connected:st.connected, lastOk:st.lastOk}); }
         if(p==='/api/devices'){ const list=Object.values(settings.devices).map(({token,...d})=>d); const names={}; list.forEach(d=>names[d.id]=d.name); names[dev.id]=names[dev.id]||dev.name; return send(res, 200, {list, names}); }
         if(p==='/api/ai' && req.method==='POST'){ const b=await body(req); const text=await ai(b); return send(res, 200, {text}); }
         if(p==='/api/ocr' && req.method==='POST'){ const b=await body(req); try{ return send(res, 200, await ocr(b.image)); }catch(e){ return send(res, 501, {error:'ocr_unavailable', message:e.message}); } }
@@ -174,6 +203,12 @@ function start(opts={}){
         if(p==='/api/admin' && req.method==='POST'){ const b=await body(req,1e5); if(typeof b.aiKey==='string') settings.aiKey=b.aiKey.trim(); if(typeof b.extraBackupDir==='string') settings.extraBackupDir=b.extraBackupDir; if(b.models) settings.models=b.models; saveSettings(); return send(res, 200, {ok:true}); }
         if(p==='/api/ewb/setup' && req.method==='POST'){ const b=await body(req,1e5); return send(res, 200, ewb.setup(b)); }
         if(p==='/api/ewb/test' && req.method==='POST'){ return send(res, 200, await ewb.test()); }
+        if(p==='/api/cloud/pin' && req.method==='POST'){ const b=await body(req,1e4); return send(res, 200, cloud.setPin(b.pin, b.pin2)); }
+        if(p==='/api/cloud/signin' && req.method==='POST'){ return send(res, 200, cloud.startSignIn()); }
+        if(p==='/api/cloud/backup' && req.method==='POST'){ return send(res, 200, await cloud.backup()); }
+        if(p==='/api/cloud/list'){ return send(res, 200, {list:await cloud.list()}); }
+        if(p==='/api/cloud/restore' && req.method==='POST'){ const b=await body(req,1e4); return send(res, 200, await cloud.restore(b.id, b.pin)); }
+        if(p==='/api/cloud/disconnect' && req.method==='POST'){ return send(res, 200, await cloud.disconnect()); }
         if(p==='/api/backup-now' && req.method==='POST'){ backupNow(); return send(res, 200, {ok:true, at:settings.lastBackup}); }
         if(p==='/api/export'){ return send(res, 200, store, {'Content-Disposition':'attachment; filename="krishi-khata-export.json"'}); }
         return send(res, 404, {error:'not_found'});
@@ -191,7 +226,7 @@ function start(opts={}){
   });
   server.listen(PORT, '0.0.0.0', ()=>log(`Krishi Khata shop server on port ${PORT}; phones connect to ${lanAddrs().join(', ')}; data in ${DATA}`));
   const stop = ()=>{ try{ if(dirty) writeAtomic(DBF, JSON.stringify(store)); }catch(e){} server.close(); };
-  return {server, port:PORT, stop, lanAddrs, dataDir:DATA, backupNow};
+  return {server, port:PORT, stop, lanAddrs, dataDir:DATA, backupNow, cloud};
 }
 
 module.exports = { start };

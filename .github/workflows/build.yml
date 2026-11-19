@@ -19,6 +19,18 @@ jobs:
         run: |
           rm -rf desktop/web
           cp -r web desktop/web
+      - name: Add the Google Drive backup key (from repository secrets, if set)
+        shell: bash
+        env:
+          GID: ${{ secrets.KK_GOOGLE_CLIENT_ID }}
+          GSEC: ${{ secrets.KK_GOOGLE_CLIENT_SECRET }}
+        run: |
+          if [ -n "$GID" ]; then
+            node -e 'require("fs").writeFileSync("desktop/google-oauth.json", JSON.stringify({client_id:process.env.GID, client_secret:process.env.GSEC||""}))'
+            echo "Google Drive backup: on"
+          else
+            echo "Google Drive backup: no key set, the app will show it as off"
+          fi
       - name: Install
         working-directory: desktop
         run: npm install --no-audit --no-fund

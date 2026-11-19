@@ -298,6 +298,7 @@ async function connect(){
   connectRoom();
   render();
   refreshEwbLink().then(()=>{ if(['bill','settings','gst'].includes(S.view)) render(); });
+  const rc=()=>refreshCloud().then(()=>{ if(S.view==='home') render(); }); rc(); setInterval(rc, 10*60e3); window.addEventListener('kk-panel-closed', rc);
 }
 async function names(ids){
   ids=[...new Set(ids.filter(x=>x&&!(x in NAMES)))]; if(!ids.length||!USER||!USER.profiles) return;
@@ -518,6 +519,7 @@ function vHome(){
   return `
   ${S.dataNote?`<div class="note">${esc(S.dataNote)}</div>`:''}
   ${scanBanner()}
+  ${cloudBanner(empty)}
   ${lp.map(x=>`<button class="alertbar ${x.cls==='warn'?'warn':''}" data-go="lic">${I.warn}<span>${esc(x.t)}</span></button>`).join('')}
   <div class="tiles">
     <div class="tile"><div class="n">${rs(sale)}</div><div class="l">ఈరోజు అమ్మకం · Today's sale</div></div>
@@ -1752,6 +1754,21 @@ function taxPreview(){
 }
 
 
+/* ===== IS MY DATA SAFE? (Google Drive backup status from the shop computer) ===== */
+async function refreshCloud(){ try{ S.cloud = (window.KK && KK.cloud) ? await KK.cloud.status() : null; }catch(e){ S.cloud=null; } }
+function cloudBanner(empty){
+  const c=S.cloud; const K=window.KK; if(!c || !K) return '';
+  const desk=K.mode==='desktop', owner=desk || (K.cfg&&K.cfg.role==='owner');
+  if(!owner) return '';
+  const ago=c.lastOk?new Date(c.lastOk).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}):'';
+  if(c.safe) return `<div class="note" style="color:var(--good)">☁️ డేటా భద్రం · Data safe in Google Drive · ${esc(ago)}</div>`;
+  if(desk && !c.configured) return '';
+  if(desk && empty && !c.connected) return `<button class="alertbar warn" data-a="openLink">☁️<span>కొత్త కంప్యూటర్? గూగుల్ డ్రైవ్ నుండి పాత డేటా తెచ్చుకోండి · New computer? Restore your old data from Google Drive</span></button>`;
+  if(empty) return '';
+  if(!c.connected || !c.hasPin) return desk?`<button class="alertbar warn" data-a="openLink">${I.warn}<span>మీ డేటా ఈ కంప్యూటర్‌లో మాత్రమే ఉంది · Your data is only on this computer. Tap to save it to Google Drive.</span></button>`:'';
+  return `<button class="alertbar" ${desk?'data-a="openLink"':''}>${I.warn}<span>గూగుల్ డ్రైవ్ బ్యాకప్ ఆగింది · Google Drive backup not done since ${ago?esc(ago):'—'}.${desk?' Tap to fix.':' Check the shop computer.'}${c.signInNeeded?' Sign in again.':''}</span></button>`;
+}
+
 /* ===== DEALER SALES + E-WAY BILL =====
    A dealer sale is a B2B tax invoice to a retailer / sub-dealer (their GSTIN, address, PIN).
    When goods worth more than the limit move by vehicle, an e-way bill is needed before they leave.
@@ -2889,6 +2906,7 @@ function act(a,b){
     case 'pickDealer': { const p=S.parties.find(x=>x.id===b.dataset.id); if(p){ const c=cart(); Object.assign(c,{farmer:p.name, gstin:p.gstin||'', addr:p.address||'', place:p.place||p.village||'', pin:p.pin||'', phone:p.phone||''}); if(c.ship&&p.km) c.ship.km=String(p.km); else if(p.km) c.shipKm=p.km; render(); } break; }
     case 'shipOn': { const c=cart(); syncCartInputs(); if(!c.ship) c.ship={on:false,vehicle:'',km:'',tr:'',trId:'',pin:'',place:''}; c.ship.on=b.dataset.v==='1'; c.ship.touched=true; if(c.ship.on && !c.ship.km && c.b2b){ const d=S.parties.find(p=>p.gstin&&p.gstin===c.gstin); if(d&&d.km) c.ship.km=String(d.km); } render(); break; }
     case 'rate': { const c=cart(); const it=c.items[+b.dataset.i]; if(!it) break; syncCartInputs(); numpad('ధర · Price for one '+(it.unit||''), Math.round(it.rate), v=>{ if(v>0){ it.rate=v; it.manual=true; } closeSheet(); render(); }); break; }
+    case 'openLink': if(window.KK && KK.open) KK.open(); break;
     case 'ewbStart': ewbStartSheet(b.dataset.id); break;
     case 'ewbGen': ewbGenerate(b.dataset.id); break;
     case 'ewbJson': { const s=S.sales.find(x=>x.id===b.dataset.id); if(s) ewbDownload([s]); break; }

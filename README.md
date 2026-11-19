@@ -63,6 +63,28 @@ Every bill photo goes through:
 5. The on-device reader on the shop computer (works offline) confirms each number is really on the photo
 6. The dealer checks only the lines marked in orange, then saves
 
+## Google Drive backup (data safe in the cloud)
+
+**For the dealer (shop computer, about 2 minutes):** tap the connection badge, then go to **Google Drive backup**.
+1. Choose a backup PIN of 6 to 12 digits. Write it on paper and keep it with your licences. Without the PIN nobody can open the backup, not even us.
+2. Tap **Sign in with Google**, press **Allow** in the browser, and come back.
+
+After that, the computer saves a locked copy to the shop's own Google Drive every day. It is kept in the folder "Krishi Khata Backups": the last 14 copies, plus one per month for a year. The home screen shows **✓ Data safe**. If it shows a red warning, the backup has stopped.
+
+**New computer:** install the app, tap **New computer? Restore old data**, sign in with the same Google account, pick the backup, and type the PIN. Phones keep working once they are reconnected.
+
+The backup leaves out these secrets: the AI key and the e-way bill password. Type them again after a restore.
+
+**For us, once, before giving the app to dealers (Google Cloud console):**
+1. Create a project, then enable the **Google Drive API**.
+2. Set up the OAuth consent screen:
+   - User type **External**.
+   - App name "Krishi Khata", logo, support email, and a privacy policy web page.
+   - Scope: only `.../auth/drive.file`, which Google rates non-sensitive and needs only basic verification.
+3. Create credentials: OAuth client ID → **Desktop app**.
+4. Press **Publish app** to move it to "In production". In "Testing", Google ends every sign-in after 7 days.
+5. In GitHub, go to Settings → Secrets → Actions and add `KK_GOOGLE_CLIENT_ID` and `KK_GOOGLE_CLIENT_SECRET`. The next build includes them.
+
 ## Backups
 
 The computer keeps a copy every 6 hours (last 30 days) in its data folder (tray icon → Open data folder).

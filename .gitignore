@@ -7,3 +7,5 @@ mobile/android/
 mobile/assets/
 *.log
 package-lock.json
+
+desktop/google-oauth.json
