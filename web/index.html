@@ -85,6 +85,7 @@ main{flex:1;padding:16px;display:flex;flex-direction:column;gap:16px}
 .prod .q{font-size:15px;font-weight:600;margin-top:auto;font-variant-numeric:tabular-nums}
 .prod .ic{width:26px;height:26px;color:var(--c)}
 .cat-fertilizer{--c:var(--field)}.cat-pesticide{--c:var(--bad)}.cat-seed{--c:var(--turmeric)}.cat-other{--c:var(--sky)}
+.linkbtn{background:none;border:0;padding:0;font:inherit;color:var(--blue,#1f5fa8);text-decoration:underline dotted;cursor:pointer}
 .pill{display:inline-block;border-radius:999px;padding:2px 10px;font-size:13px;font-weight:600;background:#e7ece7;color:var(--ink)}
 .pill.bad{background:#fbe1dd;color:var(--bad)}.pill.warn{background:#fdebd3;color:#8a4a00}.pill.good{background:#dcefe3;color:var(--good)}
 .line{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px dashed var(--line)}
@@ -296,6 +297,7 @@ async function connect(){
   try{ TTS = await claude.use('tts'); }catch(e){ TTS=null; }
   connectRoom();
   render();
+  refreshEwbLink().then(()=>{ if(['bill','settings','gst'].includes(S.view)) render(); });
 }
 async function names(ids){
   ids=[...new Set(ids.filter(x=>x&&!(x in NAMES)))]; if(!ids.length||!USER||!USER.profiles) return;
@@ -546,7 +548,7 @@ function vHome(){
 }
 
 /* ----- SELL ----- */
-function cart(){ if(!S.cart) S.cart={items:[], farmer:'', village:'', phone:'', b2b:false, gstin:'', addr:''}; return S.cart; }
+function cart(){ if(!S.cart) S.cart={items:[], farmer:'', village:'', phone:'', b2b:false, gstin:'', addr:'', place:'', pin:'', ship:null}; return S.cart; }
 function cartTotal(){ return cart().items.reduce((a,i)=>a+i.qty*i.rate,0); }
 function pickPlace(p, want){
   if(want && at(p,want)>0) return want;
@@ -557,7 +559,7 @@ function addToCart(pid, qty, from){
   const p=S.products.find(x=>x.id===pid); if(!p) return;
   const ls=licFor(p.cat); if(['fertilizer','pesticide','seed'].includes(p.cat) && ls.length && ls.every(l=>licState(l).cls==='bad')) toast('⚠ '+short(LICTYPES[p.cat])+' expired. Renew before selling.');
   const c=cart(); const ex=c.items.find(i=>i.pid===pid);
-  if(ex) ex.qty+=qty; else c.items.push({pid, name:p.name, pack:p.pack||'', batch:p.batch||'', exp:p.exp||'', qty, rate:p.mrp||p.buy||0, gst:p.gst ?? S.shop.gst[p.cat||'other'] ?? 0, cat:p.cat||'other', unit:p.unit||'', hsn:p.hsn||defaultHsn(p.name,p.cat), from:pickPlace(p, from)});
+  if(ex) ex.qty+=qty; else c.items.push({pid, name:p.name, pack:p.pack||'', batch:p.batch||'', exp:p.exp||'', qty, rate:(cart().b2b&&num(p.dealer))?num(p.dealer):(p.mrp||p.buy||0), gst:p.gst ?? S.shop.gst[p.cat||'other'] ?? 0, cat:p.cat||'other', unit:p.unit||'', hsn:p.hsn||defaultHsn(p.name,p.cat), from:pickPlace(p, from)});
 }
 /* pick oldest-expiry batch with stock for a product name (FEFO) */
 function bestBatch(name){
@@ -583,7 +585,7 @@ function vSell(){
     <h3>బిల్లు · Bill</h3>
     ${c.items.length? c.items.map((it,ix)=>{ const p=S.products.find(x=>x.id===it.pid); const short_=p&&at(p,it.from)<it.qty; return `
       <div class="line" style="flex-wrap:wrap">
-        <div class="grow"><div class="nm">${esc(it.name)}</div><div class="sub">${esc(it.pack)} ${it.batch?'· B:'+esc(it.batch):''} · ${rs(it.rate)} each</div></div>
+        <div class="grow"><div class="nm">${esc(it.name)}</div><div class="sub">${esc(it.pack)} ${it.batch?'· B:'+esc(it.batch):''} · <button class="linkbtn" data-a="rate" data-i="${ix}" aria-label="change price">${rs(it.rate)} each ✎</button></div></div>
         <div class="qty"><button data-a="dec" data-i="${ix}" aria-label="less">−</button><input inputmode="numeric" data-a="qty" data-i="${ix}" value="${it.qty}" aria-label="quantity"><button data-a="inc" data-i="${ix}" aria-label="more">+</button></div>
         <div style="flex-basis:100%"><span class="note">ఎక్కడ నుండి ఇచ్చారు? · Given from:</span>
           <div class="locs">${locs().map(l=>`<button class="loc ${it.from===l.id?'on':''}" data-a="from" data-i="${ix}" data-l="${l.id}">${esc(short(l.name))} (${p?at(p,l.id):0})</button>`).join('')}</div>
@@ -595,10 +597,11 @@ function vSell(){
   </div>
   ${c.items.length?`
   <div class="card">
-    ${regType()==='regular'?buyerBlock(c):''}
+    ${regType()==='regular'?buyerChips(c):''}
     <div class="withmic"><label class="f">${c.b2b?'వ్యాపారం పేరు · Business name':'రైతు పేరు · Farmer name'}<input id="fName" value="${esc(c.farmer)}" autocomplete="off"></label><button class="mic" data-a="nameMic" aria-label="Say farmer name">${I.mic}</button></div>
-    ${known.length?`<div class="chips">${known.map(p=>`<button class="chip" data-a="pickParty" data-id="${p.id}">${esc(p.name)}${p.village?' · '+esc(p.village):''}</button>`).join('')}</div>`:''}
-    <div class="fgrid"><label class="f">ఊరు · Village<input id="fVil" value="${esc(c.village)}"></label><label class="f">ఫోన్ · Phone<input id="fPh" inputmode="tel" value="${esc(c.phone)}"></label></div>
+    ${c.b2b&&regType()==='regular'?dealerFields(c):`${known.length?`<div class="chips">${known.map(p=>`<button class="chip" data-a="pickParty" data-id="${p.id}">${esc(p.name)}${p.village?' · '+esc(p.village):''}</button>`).join('')}</div>`:''}
+    <div class="fgrid"><label class="f">ఊరు · Village<input id="fVil" value="${esc(c.village)}"></label><label class="f">ఫోన్ · Phone<input id="fPh" inputmode="tel" value="${esc(c.phone)}"></label></div>`}
+    ${shipBlock(c)}
     <div class="pair">
       <button class="act green" data-a="pay" data-m="cash">${I.check}<span>నగదు<br><small>Cash paid</small></span></button>
       <button class="act blue" data-a="pay" data-m="upi">${I.check}<span>UPI<br><small>PhonePe / GPay</small></span></button>
@@ -659,8 +662,10 @@ function applySaleItems(items){
 async function finishSale(m){
   const c=cart(); if(!c.items.length) return;
   c.farmer=($('#fName')||{}).value?.trim()||c.farmer; c.village=($('#fVil')||{}).value?.trim()||c.village; c.phone=($('#fPh')||{}).value?.trim()||c.phone;
-  if($('#bG')){ c.gstin=$('#bG').value.trim().toUpperCase(); c.addr=$('#bA').value.trim(); }
+  syncCartInputs();
   if(c.b2b && regType()==='regular'){ if(!gstinValid(c.gstin)){ toast('సరైన GSTIN రాయండి · Enter a valid buyer GSTIN'); $('#bG')?.focus(); return; } if(!c.farmer){ toast('Business name needed'); $('#fName')?.focus(); return; } }
+  if(c.ship&&c.ship.on){ const v=vehNorm(c.ship.vehicle); if(v&&!vehOk(v)){ toast('వాహనం నంబర్ సరిగా లేదు · Vehicle number looks wrong (like TS09AB1234)'); $('#shV')?.focus(); return; }
+    const pin=c.b2b?c.pin:c.ship.pin; if(!pinOk(pin)){ toast('పిన్ కోడ్ రాయండి · Enter the buyer PIN code for the e-way bill'); (c.b2b?$('#bPin'):$('#shP'))?.focus(); return; } }
   const total=Math.round(cartTotal());
   if((m==='credit'||m==='part') && !c.farmer){ toast('బాకీకి రైతు పేరు కావాలి · Farmer name needed for udhaar'); $('#fName')?.focus(); return; }
   if(m==='part'){ numpad('ఎంత ఇచ్చారు? · How much paid?', 0, v=>{ commitSale(Math.min(total,v),'cash'); }); return; }
@@ -670,24 +675,27 @@ async function commitSale(paid, mode){
   const c=cart(); const total=Math.round(cartTotal()); const credit=total-paid; const fs=c.fromScan;
   const when = c.date && /^\d{4}-\d{2}-\d{2}$/.test(c.date) && c.date<today() ? new Date(c.date+'T12:00:00').toISOString() : new Date().toISOString();
   let party=null;
+  const b2b=c.b2b && regType()==='regular' && gstinValid(c.gstin);
   if(c.farmer){
-    party=S.parties.find(p=>!isSupplier(p) && norm(p.name)===norm(c.farmer) && (!c.village || !p.village || norm(p.village)===norm(c.village)));
+    party=(b2b && S.parties.find(p=>!isSupplier(p) && p.gstin===c.gstin)) || S.parties.find(p=>!isSupplier(p) && norm(p.name)===norm(c.farmer) && (!c.village || !p.village || norm(p.village)===norm(c.village)));
     if(!party) party={id:nid('f'), name:c.farmer, village:c.village, phone:c.phone, due:0, hist:[]};
     party={...party, village:party.village||c.village, phone:c.phone||party.phone||'', hist:[...(party.hist||[])]};
+    if(b2b){ party.kind='dealer'; party.address=c.addr||party.address||''; party.place=c.place||party.place||''; party.pin=c.pin||party.pin||''; if(c.ship&&num(c.ship.km)>0) party.km=num(c.ship.km); }
   }
   const iv=nextInvoiceNo(); const no=iv.seq;
-  const b2b=c.b2b && regType()==='regular' && gstinValid(c.gstin);
   const pos=b2b?c.gstin.slice(0,2):shopState();
   if(b2b && party) party.gstin=c.gstin;
   const sale={id:nid('s'), no, inv:iv.inv, fy:iv.fy, t:when, fromPhoto:!!fs, by:ME||null, reg:regType(), pos, inter:pos!==shopState(),
-    buyer: b2b?{name:c.farmer, gstin:c.gstin, address:c.addr||''}:(c.farmer?{name:c.farmer}:null),
+    buyer: b2b?{name:c.farmer, gstin:c.gstin, address:c.addr||'', place:c.place||'', pin:c.pin||''}:(c.farmer?{name:c.farmer}:null),
+    ship: c.ship&&c.ship.on ? {vehicle:vehNorm(c.ship.vehicle), km:c.ship.km||'', tr:c.ship.tr||'', trId:(c.ship.trId||'').toUpperCase(), pin:b2b?c.pin:c.ship.pin, place:b2b?c.place:(c.ship.place||c.village||'')} : null,
+    ewb: c.ship&&c.ship.on ? {status:'pending'} : null,
     party: party?{id:party.id,name:party.name,village:party.village||'',phone:party.phone||''}:null,
     items:c.items.map(i=>{ const p=S.products.find(x=>x.id===i.pid); return {...i, cost:p?num(p.buy):0, amt:Math.round(i.qty*i.rate)}; }), total, paid, credit, mode:mode||'cash'};
   /* invoice counter is saved per device (counters), so the shared shop settings are not rewritten on every sale */
   await put('sales', sale);
   /* remove sold quantity from the place it was given from */
   const touched={};
-  for(const i of c.items){ const p=touched[i.pid]||S.products.find(x=>x.id===i.pid); if(!p) continue; const loc={...p.loc}; loc[i.from]=Math.max(0,num(loc[i.from])-i.qty); touched[i.pid]={...p,loc}; }
+  for(const i of c.items){ const p=touched[i.pid]||S.products.find(x=>x.id===i.pid); if(!p) continue; const loc={...p.loc}; loc[i.from]=Math.max(0,num(loc[i.from])-i.qty); touched[i.pid]={...p,loc, ...(b2b&&num(i.rate)>0?{dealer:num(i.rate)}:{})}; }
   for(const id in touched) await put('products', touched[id]);
   if(party){
     party.due=(party.due||0)+credit; party.last=sale.t;
@@ -696,6 +704,7 @@ async function commitSale(paid, mode){
     await put('parties', party);
   }
   S.cart=null; S.q=''; S.billId=sale.id; closeSheet(); go('bill');
+  if(sale.ewb && ewbLinkReady() && !ewbProblems(sale).length) ewbGenerate(sale.id);
   if(fs) saleScanDone(fs);
   say(credit>0 ? `బిల్లు సేవ్ అయింది. ${party.name} బాకీ ${Math.round(party.due)} రూపాయలు.` : 'బిల్లు సేవ్ అయింది. స్టాక్ నుండి తీసేశాం.');
 }
@@ -979,6 +988,7 @@ function editProd(id){
    <div class="fgrid">${locs().map(l=>`<label class="f">${esc(l.name)}<input id="eq_${l.id}" inputmode="numeric" value="${at(p,l.id)}"></label>`).join('')}</div>
    <div class="fgrid">
     <label class="f">అమ్మే ధర · Sell ₹<input id="em" inputmode="decimal" value="${p.mrp||''}"></label>
+    <label class="f">డీలర్ ధర · Dealer ₹<input id="ed" inputmode="decimal" value="${p.dealer||''}"></label>
     <label class="f">కొన్న ధర · Buy ₹<input id="ey" inputmode="decimal" value="${p.buy||''}"></label>
     <label class="f">బ్యాచ్ · Batch<input id="eb" value="${esc(p.batch||'')}"></label>
     <label class="f">గడువు · Expiry<input id="ee" type="month" value="${esc(p.exp||'')}"></label>
@@ -991,7 +1001,7 @@ function editProd(id){
    <button class="act ghost" id="eMove">${I.move} వేరే చోటుకు మార్చండి · Move</button>
    <button class="act ghost" id="eDel" style="color:var(--bad)">తొలగించు · Delete item</button>`);
   $('#eSave').onclick=async()=>{ const loc={}; locs().forEach(l=>loc[l.id]=Math.max(0,num($('#eq_'+l.id).value)));
-    await put('products',{...p, loc, mrp:num($('#em').value), batch:$('#eb').value.trim(), exp:$('#ee').value, buy:num($('#ey').value), gst:num($('#eg').value), hsn:$('#eh').value.trim(), company:$('#ec').value.trim()}); closeSheet(); render(); toast('Saved'); };
+    await put('products',{...p, loc, mrp:num($('#em').value), dealer:num($('#ed').value)||0, batch:$('#eb').value.trim(), exp:$('#ee').value, buy:num($('#ey').value), gst:num($('#eg').value), hsn:$('#eh').value.trim(), company:$('#ec').value.trim()}); closeSheet(); render(); toast('Saved'); };
   $('#eMove').onclick=()=>moveSheet(p.id);
   $('#eEx').onclick=()=>{ closeSheet(); productInfo(null,null,p); };
   $('#eDel').onclick=()=>{ const b=$('#eDel'); if(b.dataset.sure){ del('products',id).then(()=>{closeSheet();render();}); } else { b.dataset.sure=1; b.textContent='Tap again to delete · మళ్లీ నొక్కండి'; } };
@@ -1028,6 +1038,7 @@ function vSettings(){
   </div>
   <button class="act ghost" data-go="lic">${I.badge} లైసెన్సులు · Licences are here</button></div>
   ${gstSettingsCard()}
+  ${regType()==='regular'?ewbLinkCard():''}
   <div class="card"><h3>గోదాములు · Counter &amp; godowns</h3>
    ${locs().map((l,i)=>`<label class="f">${l.id==='counter'?'Counter':'Place '+(i+1)}<input id="loc_${i}" value="${esc(l.name)}"></label>`).join('')}
    <button class="act ghost" data-a="addLoc">${I.plus} ఇంకో గోదాము · Add a godown</button></div>
@@ -1627,7 +1638,9 @@ function defaultGst(name, cat){
 /* financial year (Apr–Mar) like 2526 */
 function fyOf(d){ d=new Date(d); const y=d.getFullYear(), m=d.getMonth(); const s=m>=3?y:y-1; return String(s%100).padStart(2,'0')+String((s+1)%100).padStart(2,'0'); }
 /* each device keeps its own invoice series (allowed under GST), so two devices offline never give the same number */
-function devCode(){ const K=window.KK; if(!K || K.mode==='desktop' || K.mode==='alone' || !ME) return ''; return 'M'+String(ME).replace(/[^a-z0-9]/gi,'').slice(-3).toUpperCase(); }
+function devCode(){ const K=window.KK; if(!K || K.mode==='desktop' || K.mode==='alone' || !ME) return ''; if(K.devCode) return String(K.devCode).toUpperCase(); return 'P'+String(ME).replace(/[^a-z0-9]/gi,'').slice(-1).toUpperCase(); }
+/* GST invoice numbers may have at most 16 characters (Rule 46): KK/2627/0001, phone B: KK/2627/B0001 */
+function invNo(pre, fy, dc, n){ pre=String(pre||'KK').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,4)||'KK'; return `${pre}/${fy}/${dc||''}${String(n).padStart(4,'0')}`; }
 function counterDoc(){ const id=ME||'local'; return S.counters.find(c=>c.id===id) || {id, inv:{}, cn:{}}; }
 function bumpCounter(kind, fy){
   const c=JSON.parse(JSON.stringify(counterDoc())); c[kind]=c[kind]||{};
@@ -1638,7 +1651,7 @@ function bumpCounter(kind, fy){
 function nextInvoiceNo(){
   const fy=fyOf(new Date()); const n=bumpCounter('inv', fy); const dc=devCode();
   const pre=(S.shop.prefix||'KK').toUpperCase();
-  return {inv:`${pre}/${fy.slice(0,2)}-${fy.slice(2)}/${dc?dc+'-':''}${String(n).padStart(4,'0')}`, fy, seq:n};
+  return {inv:invNo(pre, fy, dc, n), fy, seq:n};
 }
 
 /* amount in words, Indian system */
@@ -1691,7 +1704,8 @@ function vBill(){
     ${reg==='composition'?`<div class="c" style="color:var(--bad)">Composition taxable person, not eligible to collect tax on supplies</div>`:''}
     <table style="margin-top:8px"><tr><td><b>Invoice No:</b> ${esc(s.inv||('#'+s.no))}</td><td class="r"><b>Date:</b> ${new Date(s.t).toLocaleDateString('en-IN')}</td></tr>
       <tr><td colspan="2"><b>Bill to:</b> ${esc(s.buyer&&s.buyer.name || (s.party&&s.party.name) || 'Cash customer')}${s.party&&s.party.village?', '+esc(s.party.village):''}${s.buyer&&s.buyer.address?', '+esc(s.buyer.address):''}
-      ${s.buyer&&s.buyer.gstin?`<br><b>GSTIN:</b> ${esc(s.buyer.gstin)}`:''}<br><b>Place of supply:</b> ${esc(STATES[pos]||'')} (${pos})</td></tr></table>
+      ${s.buyer&&s.buyer.gstin?`<br><b>GSTIN:</b> ${esc(s.buyer.gstin)}`:''}${s.buyer&&s.buyer.pin?` · PIN ${esc(s.buyer.pin)}`:''}<br><b>Place of supply:</b> ${esc(STATES[pos]||'')} (${pos})
+      ${s.ewb&&s.ewb.status==='done'?`<br><b>E-way bill:</b> ${esc(ewbFmt(s.ewb.no))} · ${new Date(s.ewb.at).toLocaleDateString('en-IN')}${s.ewb.vehicle?' · Vehicle '+esc(s.ewb.vehicle):''}${s.ewb.practice?' (PRACTICE)':''}`:''}</td></tr></table>
     <table style="min-width:480px;font-size:13px"><thead><tr><th>#</th><th>Item</th><th>HSN</th><th class="r">Qty</th><th class="r">Rate</th><th class="r">Taxable</th><th class="r">GST</th><th class="r">Amount</th></tr></thead>
     <tbody>${c.lines.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.name)} <span class="note">${esc(l.pack||'')}${l.batch?'<br>B: '+esc(l.batch):''}${l.exp?' Exp '+esc(l.exp):''}</span></td><td>${esc(l.hsn||'—')}</td><td class="r">${l.qty} ${esc(l.unit||'')}</td><td class="r">${rs2(l.unitTaxable)}</td><td class="r">${rs2(l.taxable)}</td><td class="r">${reg==='regular'?l.g+'%':'—'}</td><td class="r">${rs2(l.amt)}</td></tr>`).join('')}</tbody></table>
     ${reg==='regular'?`<table style="margin-top:6px"><thead><tr><th>HSN</th><th class="r">Rate</th><th class="r">Taxable</th>${s.inter?'<th class="r">IGST</th>':'<th class="r">CGST</th><th class="r">SGST</th>'}</tr></thead>
@@ -1705,6 +1719,7 @@ function vBill(){
     ${pd&&pd.due>0?`<div style="display:flex;justify-content:space-between;color:var(--soil)"><span>Total udhaar now</span><span>${rs(pd.due)}</span></div>`:''}
     <div style="text-align:right;margin-top:18px" class="note">For ${esc(sh.name||'the shop')}<br><br>Authorised signatory</div>
   </div>
+  ${ewbCard(s)}
   ${S.shop.upi && (s.credit>0) ? `<div class="card" style="align-items:center"><b>స్కాన్ చేసి కట్టండి · Scan to pay ${rs(s.credit)}</b><div id="upiQr" data-link="${esc(upiLink(s.credit, s.inv||''))}" style="background:#fff;padding:8px;border-radius:12px"></div><span class="note">${esc(S.shop.upi)}</span></div>`:''}
   <div class="btnrow">
     <a class="act green" style="text-decoration:none" target="_blank" rel="noopener" href="${waLink(s.party&&s.party.phone, billText(s))}">${I.wa} WhatsApp</a>
@@ -1720,6 +1735,7 @@ function billText(s){
   L.push(`Invoice ${s.inv||('#'+s.no)} · ${new Date(s.t).toLocaleDateString('en-IN')}`);
   const bn=s.buyer&&s.buyer.name || (s.party&&s.party.name); if(bn) L.push(`To: ${bn}${s.party&&s.party.village?', '+s.party.village:''}`);
   if(s.buyer&&s.buyer.gstin) L.push('Buyer GSTIN: '+s.buyer.gstin);
+  if(s.ewb&&s.ewb.status==='done') L.push(`E-way bill: ${ewbFmt(s.ewb.no)}${s.ewb.vehicle?' · '+s.ewb.vehicle:''}`);
   L.push('------------------');
   for(const l of c.lines) L.push(`${l.name} ${l.pack||''} [HSN ${l.hsn||'-'}]${l.batch?' B:'+l.batch:''}${l.exp?' Exp:'+l.exp:''}\n  ${l.qty} x ${rs(l.rate)} = ${rs2(l.amt)} (GST ${l.g}%)`);
   L.push('------------------');
@@ -1728,20 +1744,311 @@ function billText(s){
   return L.join('\n');
 }
 
-/* ---- buyer block on the sell screen ---- */
-function buyerBlock(c){
-  const ok=c.gstin?gstinValid(c.gstin):null;
-  return `<div class="chips"><button class="chip ${!c.b2b?'on':''}" data-a="b2b" data-v="0">రైతు · Farmer</button><button class="chip ${c.b2b?'on':''}" data-a="b2b" data-v="1">GST వ్యాపారి · GST buyer (B2B)</button></div>
-  ${c.b2b?`<div class="fgrid">
-    <label class="f w">GSTIN<input id="bG" value="${esc(c.gstin||'')}" autocapitalize="characters" maxlength="15" placeholder="36ABCDE1234F1Z5"></label>
-    ${c.gstin?`<span class="pill ${ok?'good':'bad'}">${ok?'✓ Valid GSTIN · '+esc(STATES[c.gstin.slice(0,2)]||''):'✗ GSTIN looks wrong. Check it.'}</span>`:''}
-    <label class="f w">చిరునామా · Buyer address<input id="bA" value="${esc(c.addr||'')}"></label></div>`:''}`;
-}
 function taxPreview(){
   const c=cart(); if(!c.items.length||regType()!=='regular') return '';
-  const inter = c.b2b && gstinValid(c.gstin) && c.gstin.slice(0,2)!==shopState();
+  const inter = cartInter(c);
   const k=calcInvoice({items:c.items, inter});
   return `<div class="note" style="display:flex;justify-content:space-between"><span>Taxable ${rs2(k.taxable)}</span><span>${inter?'IGST '+rs2(k.igst):'CGST '+rs2(k.cgst)+' + SGST '+rs2(k.sgst)}</span></div>`;
+}
+
+
+/* ===== DEALER SALES + E-WAY BILL =====
+   A dealer sale is a B2B tax invoice to a retailer / sub-dealer (their GSTIN, address, PIN).
+   When goods worth more than the limit move by vehicle, an e-way bill is needed before they leave.
+   Three ways to get it:
+   1. direct: the shop computer asks the government system through a GST Suvidha Provider (no portal login)
+   2. portal file: download one JSON file, upload it at ewaybillgst.gov.in → e-Way Bill → Generate Bulk
+   3. made elsewhere: type the 12-digit number, or photograph the e-way bill QR */
+const EWB_JSON_VERSION = '1.0.0621';
+const UQC = {bag:'BAG', bottle:'BTL', packet:'PAC', kg:'KGS', litre:'LTR', box:'BOX', piece:'PCS'};
+const EWB_CANCEL = [['2','ఆర్డర్ రద్దు · Order cancelled'],['3','తప్పు వివరాలు · Wrong details'],['1','రెండుసార్లు · Made twice'],['4','ఇతర · Other']];
+const EWB_VEH = [['1','వాహనం చెడిపోయింది · Breakdown'],['2','వేరే వాహనంలోకి మార్చారు · Goods shifted to another vehicle'],['4','మొదటిసారి నంబర్ · First time'],['3','ఇతర · Other']];
+const ewbLimit = inter => inter ? 50000 : (num(S.shop.ewbLimit) || 50000);
+const pinOk = p => /^[1-9][0-9]{5}$/.test(String(p||'').trim());
+const vehOk = v => /^[A-Z]{2}[0-9]{1,2}[A-Z]{0,3}[0-9]{4}$/.test(v) || /^TR[0-9A-Z]{5,13}$/.test(v) || /^(TM|DF|BP|BG)[0-9A-Z]{4,13}$/.test(v);
+const vehNorm = v => String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');
+const ewbFmt = n => String(n||'').replace(/(\d{4})(?=\d)/g,'$1 ');
+function dealers(){ return S.parties.filter(p=>!isSupplier(p) && (p.kind==='dealer' || p.gstin)).sort((a,b)=>(b.last||'').localeCompare(a.last||'')); }
+function cartInter(c){ return !!(c.b2b && gstinValid(c.gstin) && c.gstin.slice(0,2)!==shopState()); }
+/* consignment value for the limit: goods that carry GST, with GST. Seeds (0% GST, exempt) are not counted (Rule 138). */
+function ewbValue(items){ return Math.round(items.filter(i=>num(i.gst)>0).reduce((a,i)=>a+num(i.qty)*num(i.rate),0)); }
+function ewbDate(t){ const d=new Date(t); return String(d.getDate()).padStart(2,'0')+'/'+String(d.getMonth()+1).padStart(2,'0')+'/'+d.getFullYear(); }
+/* validity: 1 day per 200 km (normal cargo); each day ends at midnight */
+function ewbValidity(genIso, km){ const days=Math.max(1, Math.ceil((num(km)||1)/200)); const d=new Date(genIso); d.setDate(d.getDate()+days); d.setHours(23,59,0,0); return d.toISOString(); }
+const localDT = d => new Date(d.getTime()-d.getTimezoneOffset()*60000).toISOString().slice(0,16);
+const dt = iso => iso ? new Date(iso).toLocaleString('en-IN',{day:'numeric',month:'short',hour:'numeric',minute:'2-digit'}) : '';
+function ewbLinkReady(){ return !!(S.ewbLink && S.ewbLink.ready); }
+async function refreshEwbLink(){ try{ S.ewbLink = (window.KK && KK.ewb) ? await KK.ewb.status() : null; }catch(e){ S.ewbLink=null; } }
+
+/* the government request, in the format the e-way bill system uses (NIC API v1.03 field names) */
+function ewbPayload(s){
+  const c=calcInvoice(s), sh=S.shop, b=s.buyer||{}, sp=s.ship||{};
+  const toSt = b.gstin ? b.gstin.slice(0,2) : (s.pos||shopState());
+  const v = vehNorm(sp.vehicle); const title=docTitle(s,c);
+  return {
+    supplyType:'O', subSupplyType:'1', subSupplyDesc:'', docType: title==='Bill of Supply'?'BIL':'INV', docNo:s.inv, docDate:ewbDate(s.t),
+    fromGstin:gstin(), fromTrdName:(sh.name||'').slice(0,100), fromAddr1:(sh.address||'').slice(0,120), fromAddr2:'', fromPlace:(sh.place||'').slice(0,50), fromPincode:Number(sh.pin)||0, actFromStateCode:Number(shopState()), fromStateCode:Number(shopState()),
+    toGstin:b.gstin||'URP', toTrdName:(b.name||(s.party&&s.party.name)||'').slice(0,100), toAddr1:(b.address||b.place||sp.place||(s.party&&s.party.village)||'').slice(0,120), toAddr2:'', toPlace:(b.place||sp.place||(s.party&&s.party.village)||'').slice(0,50), toPincode:Number(b.pin||sp.pin)||0, actToStateCode:Number(toSt), toStateCode:Number(toSt),
+    transactionType:1, dispatchFromGSTIN:'', dispatchFromTradeName:'', shipToGSTIN:'', shipToTradeName:'',
+    otherValue:c.round, totalValue:c.taxable, cgstValue:c.cgst, sgstValue:c.sgst, igstValue:c.igst, cessValue:0, cessNonAdvolValue:0, totInvValue:c.total,
+    transporterId:(sp.trId||'').toUpperCase(), transporterName:(sp.tr||'').slice(0,100), transDocNo:'', transMode:v?'1':'', transDistance:String(Math.round(num(sp.km))||0), transDocDate:'', vehicleNo:v, vehicleType:v?'R':'',
+    itemList:c.lines.map((l,i)=>({itemNo:i+1, productName:l.name.slice(0,100), productDesc:`${l.name} ${l.pack||''}`.trim().slice(0,100), hsnCode:Number(String(l.hsn||'').replace(/\D/g,''))||0,
+      quantity:num(l.qty), qtyUnit:UQC[l.unit]||'OTH', taxableAmount:l.taxable, sgstRate:s.inter?0:l.g/2, cgstRate:s.inter?0:l.g/2, igstRate:s.inter?l.g:0, cessRate:0, cessNonAdvol:0}))
+  };
+}
+/* same request in the portal's bulk-upload file layout */
+function ewbBulkEntry(s){
+  const p=ewbPayload(s); const top=p.itemList.slice().sort((a,b)=>b.taxableAmount-a.taxableAmount)[0];
+  const {actFromStateCode, actToStateCode, otherValue, cessNonAdvolValue, dispatchFromGSTIN, dispatchFromTradeName, shipToGSTIN, shipToTradeName, ...rest} = p;
+  return {userGstin:gstin(), ...rest, actualFromStateCode:actFromStateCode, actualToStateCode:actToStateCode, OthValue:otherValue, TotNonAdvolVal:cessNonAdvolValue, mainHsnCode:top?top.hsnCode:0};
+}
+/* everything the government system would reject, said simply, before we send */
+function ewbProblems(s){
+  const out=[], sh=S.shop, b=s.buyer||{}, sp=s.ship||{};
+  if((s.reg||regType())==='unregistered') out.push('Your shop has no GSTIN. Only GST-registered shops make e-way bills here.');
+  if(!gstinValid(gstin())) out.push('Your shop GSTIN is missing or wrong (Settings).');
+  if(!pinOk(sh.pin)) out.push('Your shop PIN code is missing (Settings → GST setup).');
+  if(!sh.place) out.push('Your shop town is missing (Settings → GST setup).');
+  if(b.gstin && !gstinValid(b.gstin)) out.push('Buyer GSTIN looks wrong.');
+  if(!(b.name||(s.party&&s.party.name))) out.push('Buyer name is missing.');
+  if(!pinOk(b.pin||sp.pin)) out.push('Buyer PIN code is missing.');
+  if(!(b.place||sp.place||(s.party&&s.party.village))) out.push('Buyer town / village is missing.');
+  const noHsn=calcInvoice(s).lines.filter(l=>String(l.hsn||'').replace(/\D/g,'').length<4).map(l=>l.name);
+  if(noHsn.length) out.push('HSN code missing for: '+noHsn.join(', ')+' (Stock → tap item → HSN).');
+  if(!s.inv || s.inv.length>16 || !/^[A-Za-z1-9][A-Za-z0-9/-]*$/.test(s.inv)) out.push(`Invoice number ${s.inv||''} is not in a form the system accepts (max 16 letters, digits, / or -).`);
+  const v=vehNorm(sp.vehicle); if(v && !vehOk(v)) out.push(`Vehicle number ${v} does not look right (like TS09AB1234).`);
+  if(num(sp.km)>4000) out.push('Distance cannot be more than 4000 km.');
+  if(num(sp.km)<0) out.push('Distance cannot be negative.');
+  return out;
+}
+
+/* ---- sell screen: buyer and transport ---- */
+function buyerChips(c){
+  const ds=c.b2b?dealers().slice(0,8):[];
+  return `<div class="chips" style="flex-wrap:wrap"><button class="chip ${!c.b2b?'on':''}" data-a="b2b" data-v="0">రైతు · Farmer</button><button class="chip ${c.b2b?'on':''}" data-a="b2b" data-v="1">డీలర్ / రిటైలర్ · Dealer (B2B)</button></div>
+  ${ds.length?`<div class="chips">${ds.map(p=>`<button class="chip" data-a="pickDealer" data-id="${p.id}">${esc(p.name)}${p.place||p.village?' · '+esc(p.place||p.village):''}</button>`).join('')}</div>`:''}`;
+}
+function dealerFields(c){
+  const ok=c.gstin?gstinValid(c.gstin):null;
+  return `<div class="fgrid">
+    <label class="f w">GSTIN<input id="bG" value="${esc(c.gstin||'')}" autocapitalize="characters" maxlength="15" placeholder="36ABCDE1234F1Z5"></label>
+    ${c.gstin?`<span class="pill ${ok?'good':'bad'}">${ok?'✓ Valid GSTIN · '+esc(STATES[c.gstin.slice(0,2)]||''):'✗ GSTIN looks wrong. Check it.'}</span>`:''}
+    <label class="f w">చిరునామా · Address<input id="bA" value="${esc(c.addr||'')}"></label>
+    <label class="f">ఊరు · Town<input id="bPl" value="${esc(c.place||'')}"></label>
+    <label class="f">పిన్ కోడ్ · PIN<input id="bPin" inputmode="numeric" maxlength="6" value="${esc(c.pin||'')}"></label>
+    <label class="f w">ఫోన్ · Phone<input id="fPh" inputmode="tel" value="${esc(c.phone)}"></label></div>
+   <p class="note">Dealer prices are used where you have set them. Tap a price to change it.</p>`;
+}
+function shipBlock(c){
+  if(!c.items.length || regType()==='unregistered') return '';
+  const inter=cartInter(c), v=ewbValue(c.items), lim=ewbLimit(inter), s=c.ship;
+  if(v<=lim && !(s&&s.on)) return c.b2b&&v>0?`<p class="note">🚚 E-way bill not needed: goods value ${rs(v)} is not over ${rs(lim)}.</p>`:'';
+  if(!s){ c.ship={on:!!c.b2b, vehicle:'', km:c.shipKm?String(c.shipKm):'', tr:'', trId:'', pin:'', place:''}; return shipBlock(c); }
+  return `<div class="card" style="border-left:8px solid var(--warn)"><h3>🚚 ఈ-వే బిల్లు · E-way bill</h3>
+   <p class="note">Goods worth ${rs(v)}${v>lim?` (over ${rs(lim)})`:''}. If they go by lorry, auto or tractor, the e-way bill must be made before they leave.${c.items.some(i=>!num(i.gst))?' Seeds (0% GST) are not counted.':''}</p>
+   <div class="chips" style="flex-wrap:wrap"><button class="chip ${s.on?'on':''}" data-a="shipOn" data-v="1">వాహనంలో పంపుతున్నాం · Goods going by vehicle</button><button class="chip ${!s.on?'on':''}" data-a="shipOn" data-v="0">ఇప్పుడు వద్దు · Not now</button></div>
+   ${s.on?`<div class="fgrid">
+     <label class="f">వాహనం నంబర్ · Vehicle no<input id="shV" value="${esc(s.vehicle)}" placeholder="TS09AB1234" autocapitalize="characters"></label>
+     <label class="f">దూరం కి.మీ · Distance km<input id="shK" inputmode="numeric" value="${esc(s.km)}" placeholder="0 = auto"></label>
+     ${c.b2b?'':`<label class="f">ఊరు · Delivery village<input id="shPl" value="${esc(s.place||c.village||'')}"></label><label class="f">పిన్ · Delivery PIN<input id="shP" inputmode="numeric" maxlength="6" value="${esc(s.pin)}"></label>`}
+     <label class="f">ట్రాన్స్‌పోర్ట్ · Transporter (optional)<input id="shT" value="${esc(s.tr)}"></label>
+     <label class="f">Transporter ID (optional)<input id="shTi" value="${esc(s.trId)}" maxlength="15" autocapitalize="characters"></label></div>
+     <p class="note">Leave distance 0 and the government system works it out from the PIN codes. No vehicle yet? Leave it empty and add it before the goods leave.</p>`:`<p class="note">If the buyer takes the goods in his own vehicle, one of you still needs the e-way bill. You can add it from the bill later.</p>`}
+  </div>`;
+}
+function syncCartInputs(){
+  const c=cart(); const v=id=>{ const el=$('#'+id); return el?el.value.trim():null; };
+  const set=(k,id,f=x=>x)=>{ const x=v(id); if(x!==null) c[k]=f(x); };
+  set('addr','bA'); set('place','bPl'); set('pin','bPin'); set('gstin','bG',x=>x.toUpperCase());
+  if(c.ship){ const s=c.ship; [['vehicle','shV'],['km','shK'],['tr','shT'],['trId','shTi'],['pin','shP'],['place','shPl']].forEach(([k,id])=>{ const x=v(id); if(x!==null) s[k]=k==='vehicle'?vehNorm(x):x; }); }
+}
+function repriceCart(){ const c=cart(); for(const it of c.items){ if(it.manual) continue; const p=S.products.find(x=>x.id===it.pid); if(p) it.rate = c.b2b&&num(p.dealer) ? num(p.dealer) : (p.mrp||p.buy||0); } }
+
+/* ---- bill screen: e-way bill card ---- */
+function ewbCard(s){
+  const e=s.ewb; const reg=s.reg||regType(); if(reg==='unregistered') return '';
+  if(!e){
+    const v=ewbValue(s.items), lim=ewbLimit(!!s.inter);
+    if(v<=lim && !(s.buyer&&s.buyer.gstin)) return '';
+    return `<button class="act ghost" data-a="ewbStart" data-id="${s.id}">🚚 ${v>lim?'ఈ-వే బిల్లు చేయండి · Make e-way bill':'ఈ-వే బిల్లు (అవసరమైతే) · E-way bill if needed'}</button>`;
+  }
+  if(e.status==='done') return `<div class="card" style="border-left:8px solid var(--good)">
+    <h3>🚚 ఈ-వే బిల్లు · E-way bill ${e.practice?'<span class="pill warn">PRACTICE · not real</span>':''}</h3>
+    <div style="font-size:26px;font-weight:800;letter-spacing:.04em">${esc(ewbFmt(e.no))}</div>
+    <div class="note">Made ${esc(dt(e.at))}${e.validUpto?' · valid till <b>'+esc(dt(e.validUpto))+'</b>':''}${e.vehicle?' · vehicle '+esc(e.vehicle):' · <b style="color:var(--bad)">no vehicle yet</b>'}${e.km?' · '+e.km+' km':''} · ${e.via==='direct'?'made from this app':'made on portal'}</div>
+    <div class="btnrow">
+      <a class="act green" style="text-decoration:none" target="_blank" rel="noopener" href="${waLink('', ewbText(s))}">${I.wa} Send to driver</a>
+      <button class="act ghost" data-a="ewbVeh" data-id="${s.id}">వాహనం మార్చు · Change vehicle</button>
+    </div>
+    ${Date.now()-new Date(e.at).getTime()<24*3600e3?`<button class="act ghost" style="color:var(--bad)" data-a="ewbCancel" data-id="${s.id}">రద్దు · Cancel e-way bill (within 24 hours)</button>`:''}
+  </div>`;
+  if(e.status==='cancelled') return `<div class="card"><h3>🚚 E-way bill ${esc(ewbFmt(e.no))} cancelled</h3><div class="note">${esc(dt(e.cancelledAt))}</div><button class="act ghost" data-a="ewbStart" data-id="${s.id}">కొత్తది చేయండి · Make a new one</button></div>`;
+  const probs=ewbProblems(s); const direct=ewbLinkReady();
+  return `<div class="card" style="border-left:8px solid var(--warn)"><h3>🚚 ఈ-వే బిల్లు చేయాలి · E-way bill to be made</h3>
+    <div class="note">Vehicle: ${s.ship&&s.ship.vehicle?esc(s.ship.vehicle):'not given yet'} · Distance: ${s.ship&&num(s.ship.km)?num(s.ship.km)+' km':'auto from PIN codes'}</div>
+    ${e.error?`<div style="color:var(--bad)">✗ ${esc(e.error)}</div>`:''}
+    ${probs.map(p=>`<div style="color:#8a4a00">⚠ ${esc(p)}</div>`).join('')}
+    <button class="act ghost" style="min-height:44px;font-size:16px" data-a="ewbStart" data-id="${s.id}">✎ వాహనం / దూరం మార్చు · Edit vehicle, distance, buyer PIN</button>
+    ${direct?`<button class="act yellow" data-a="ewbGen" data-id="${s.id}" ${probs.length?'disabled':''}>🚚 ఇప్పుడే తయారు చేయండి<br><small>Make it now · no portal login${S.ewbLink.practice?' (practice link)':''}</small></button>`:
+      `<p class="note">${window.KK&&KK.mode!=='alone'?'Direct link is not set up on the shop computer yet (Settings → E-way bill link). Until then:':'On this phone, use the portal file:'}</p>`}
+    <div class="btnrow">
+      <button class="act ghost" data-a="ewbJson" data-id="${s.id}" ${probs.length?'disabled':''}>${I.book} Portal file</button>
+      <button class="act ghost" data-a="ewbEnter" data-id="${s.id}">నంబర్ రాయండి · Type number</button>
+    </div>
+    <button class="act ghost" data-a="ewbScan" data-id="${s.id}">${I.cam} ఈ-వే బిల్లు ఫోటో · Photo of e-way bill (reads the QR)</button>
+  </div>`;
+}
+function ewbText(s){
+  const e=s.ewb||{}; const sh=S.shop; const b=s.buyer||{};
+  return [`*E-way bill ${ewbFmt(e.no)}*${e.practice?' (PRACTICE)':''}`, `From: ${sh.name||''}, ${sh.place||''} ${sh.pin||''}`, `To: ${b.name||(s.party&&s.party.name)||''}, ${b.place||''} ${b.pin||''}`,
+    `Invoice ${s.inv} · ${rs(calcInvoice(s).total)}`, e.vehicle?`Vehicle: ${e.vehicle}`:'Vehicle: not added', e.validUpto?`Valid till: ${dt(e.validUpto)}`:'' ].filter(Boolean).join('\n');
+}
+async function saveSale(s){ await put('sales', s); const i=S.sales.findIndex(x=>x.id===s.id); if(i>=0) S.sales[i]=s; }
+
+/* transport details for a bill that is already saved */
+function ewbStartSheet(id){
+  const s=S.sales.find(x=>x.id===id); if(!s) return;
+  const b=s.buyer||{}, sp=s.ship||{};
+  sheet(`<h2>🚚 ఈ-వే బిల్లు · E-way bill</h2><div class="note">Invoice ${esc(s.inv)} · ${rs(calcInvoice(s).total)}</div>
+   <div class="fgrid">
+    <label class="f">వాహనం నంబర్ · Vehicle no<input id="eV" value="${esc(sp.vehicle||'')}" placeholder="TS09AB1234" autocapitalize="characters"></label>
+    <label class="f">దూరం కి.మీ · Distance km<input id="eK" inputmode="numeric" value="${esc(sp.km||'')}" placeholder="0 = auto"></label>
+    <label class="f">కొనేవారి ఊరు · Buyer town<input id="eP" value="${esc(b.place||sp.place||(s.party&&s.party.village)||'')}"></label>
+    <label class="f">పిన్ · Buyer PIN<input id="ePin" inputmode="numeric" maxlength="6" value="${esc(b.pin||sp.pin||'')}"></label>
+    <label class="f">Transporter (optional)<input id="eT" value="${esc(sp.tr||'')}"></label>
+    <label class="f">Transporter ID<input id="eTi" maxlength="15" value="${esc(sp.trId||'')}"></label></div>
+   <button class="act green" id="eOk">${I.check} సరే · OK</button><button class="act ghost" id="eNo">రద్దు · Cancel</button>`);
+  $('#eNo').onclick=closeSheet;
+  $('#eOk').onclick=async()=>{
+    const ship={...sp, vehicle:vehNorm($('#eV').value), km:$('#eK').value.trim(), tr:$('#eT').value.trim(), trId:$('#eTi').value.trim().toUpperCase(), place:$('#eP').value.trim(), pin:$('#ePin').value.trim()};
+    const ns={...s, ship, buyer:s.buyer?{...s.buyer, place:ship.place, pin:ship.pin}:s.buyer, ewb: s.ewb&&s.ewb.status==='done'?s.ewb:{status:'pending'}};
+    await saveSale(ns);
+    if(ns.party && ns.buyer && ns.buyer.gstin){ const p=S.parties.find(x=>x.id===ns.party.id); if(p && (!p.pin || !p.place)) await put('parties', {...p, pin:p.pin||ship.pin, place:p.place||ship.place}); }
+    closeSheet(); render();
+  };
+}
+async function ewbGenerate(id){
+  const s=S.sales.find(x=>x.id===id); if(!s) return;
+  const probs=ewbProblems(s); if(probs.length){ toast(probs[0]); render(); return; }
+  if(!ewbLinkReady()){ toast('Direct link not set up. Use the portal file.'); return; }
+  busy('ఈ-వే బిల్లు తయారవుతోంది… Making e-way bill');
+  try{
+    const r=await KK.ewb.generate(ewbPayload(s));
+    const e={status:'done', no:String(r.ewbNo), at:r.ewbDate||new Date().toISOString(), validUpto:r.validUpto||'', vehicle:vehNorm(s.ship&&s.ship.vehicle), km:num(r.distance)||num(s.ship&&s.ship.km)||0, via:'direct', practice:!!r.practice, by:ME||null};
+    await saveSale({...s, ewb:e}); closeSheet(); render(); say('ఈ-వే బిల్లు తయారైంది.'); toast('E-way bill '+ewbFmt(e.no));
+  }catch(err){
+    closeSheet(); const msg=(err&&err.message)||'Could not reach the e-way bill system';
+    await saveSale({...s, ewb:{...(s.ewb||{}), status:'pending', error:msg}}); render(); toast(msg);
+  }
+}
+async function ewbDownload(list){
+  list=list.filter(s=>!ewbProblems(s).length); if(!list.length){ toast('Fix the problems shown first.'); return; }
+  let D=null; try{ D=await claude.use('downloads'); }catch(e){} if(!D){ toast('Download is not available here.'); return; }
+  const data=JSON.stringify({version:EWB_JSON_VERSION, billLists:list.map(ewbBulkEntry)}, null, 1);
+  try{ await D.save({filename:`EWB_${list.length===1?list[0].inv.replace(/[^A-Za-z0-9]+/g,'_'):today()}.json`, data});
+    for(const s of list) if(!s.ewb || s.ewb.status!=='done') await saveSale({...s, ewb:{...(s.ewb||{}), status:'pending', fileAt:new Date().toISOString(), error:''}});
+    sheet(`<h2>ఫైల్ సిద్ధం · File ready</h2><ol style="font-size:18px;line-height:1.6;padding-left:22px">
+      <li>Open <b>ewaybillgst.gov.in</b> and log in.</li><li>e-Way Bill → <b>Generate Bulk</b>.</li><li>Choose this file → <b>Upload &amp; Generate</b>.</li>
+      <li>Come back here: <b>Type number</b> or take a <b>photo of the e-way bill</b>.</li></ol>
+      <p class="note">To skip the portal every time, set up the direct link once (Settings → E-way bill link).</p><button class="act green" id="fOk">సరే · OK</button>`);
+    $('#fOk').onclick=()=>{ closeSheet(); render(); };
+  }catch(e){ if(e&&e.code!=='declined') toast('Could not save the file.'); }
+}
+function ewbEnterSheet(id, pre){
+  const s=S.sales.find(x=>x.id===id); if(!s) return;
+  sheet(`<h2>ఈ-వే బిల్లు నంబర్ · E-way bill number</h2>
+   <label class="f">12 అంకెలు · 12 digits<input id="enN" inputmode="numeric" maxlength="14" value="${esc(pre&&pre.no||'')}" style="font-size:26px;letter-spacing:.08em"></label>
+   <label class="f">ఎప్పుడు చేశారు · Made on<input id="enD" type="datetime-local" value="${esc(localDT(pre&&pre.at?new Date(pre.at):new Date()))}"></label>
+   <label class="f">వాహనం · Vehicle<input id="enV" value="${esc(s.ship&&s.ship.vehicle||'')}"></label>
+   ${pre&&pre.gstin&&pre.gstin!==gstin()?`<span class="pill bad">⚠ This e-way bill was made by GSTIN ${esc(pre.gstin)}, not yours. Check it.</span>`:''}
+   <button class="act green" id="enOk">${I.check} సేవ్ · Save</button><button class="act ghost" id="enNo">రద్దు · Cancel</button>`);
+  $('#enNo').onclick=closeSheet;
+  $('#enOk').onclick=async()=>{
+    const no=$('#enN').value.replace(/\D/g,''); if(no.length!==12){ toast('E-way bill number has 12 digits'); return; }
+    if(S.sales.some(x=>x.id!==s.id && x.ewb && x.ewb.no===no && x.ewb.status==='done')){ toast('This number is already on another bill'); return; }
+    const at=new Date($('#enD').value||Date.now()).toISOString(); const km=num(s.ship&&s.ship.km);
+    await saveSale({...s, ewb:{status:'done', no, at, validUpto:ewbValidity(at, km), vehicle:vehNorm($('#enV').value), km, via:'portal', by:ME||null}});
+    closeSheet(); render(); toast('Saved on the bill');
+  };
+}
+function parseEwbQR(t){ t=String(t||''); const m=t.match(/(\d{12})\/([0-9A-Z]{15})\/(\d{2})\/(\d{2})\/(\d{4})/); if(m) return {no:m[1], gstin:m[2], at:new Date(`${m[5]}-${m[4]}-${m[3]}T12:00:00`).toISOString()}; const n=t.match(/\b(\d{12})\b/); return n?{no:n[1]}:null; }
+function ewbScan(id){ takePhoto(async (blob)=>{ busy('QR చదువుతోంది… Reading QR'); const q=await findQR(blob, parseEwbQR); closeSheet(); if(q) ewbEnterSheet(id, q); else { toast('QR not found. Type the number.'); ewbEnterSheet(id); } }); }
+function ewbCancelSheet(id){
+  const s=S.sales.find(x=>x.id===id); if(!s||!s.ewb) return;
+  sheet(`<h2>ఈ-వే బిల్లు రద్దు · Cancel e-way bill</h2><div class="note">${esc(ewbFmt(s.ewb.no))}</div>
+   <div class="chips">${EWB_CANCEL.map(([k,v],i)=>`<button class="chip ${i===0?'on':''}" data-r="${k}">${v}</button>`).join('')}</div>
+   <label class="f">కారణం · Remark<input id="cR" value=""></label>
+   ${s.ewb.via==='direct'&&ewbLinkReady()?'':'<p class="note">This was made on the portal. Cancel it on the portal too (e-Way Bill → Cancel); this only marks it here.</p>'}
+   <button class="act" style="background:var(--bad);color:#fff" id="cOk">రద్దు చేయండి · Cancel it</button><button class="act ghost" id="cNo">వెనక్కి · Back</button>`);
+  let code='2'; document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{ code=b.dataset.r; document.querySelectorAll('[data-r]').forEach(x=>x.classList.toggle('on',x===b)); });
+  $('#cNo').onclick=closeSheet;
+  $('#cOk').onclick=async()=>{
+    const remark=$('#cR').value.trim()||EWB_CANCEL.find(x=>x[0]===code)[1].split('· ')[1];
+    if(s.ewb.via==='direct' && ewbLinkReady()){
+      busy('రద్దు చేస్తోంది…'); try{ await KK.ewb.cancel({ewbNo:Number(s.ewb.no), cancelRsnCode:Number(code), cancelRmrk:remark.slice(0,50)}); }catch(err){ closeSheet(); toast((err&&err.message)||'Could not cancel'); return; }
+    }
+    await saveSale({...s, ewb:{...s.ewb, status:'cancelled', cancelledAt:new Date().toISOString(), cancelCode:code}}); closeSheet(); render(); toast('Cancelled');
+  };
+}
+function ewbVehSheet(id){
+  const s=S.sales.find(x=>x.id===id); if(!s||!s.ewb) return;
+  sheet(`<h2>వాహనం మార్చండి · Change vehicle</h2><div class="note">E-way bill ${esc(ewbFmt(s.ewb.no))}${s.ewb.vehicle?' · now '+esc(s.ewb.vehicle):''}</div>
+   <label class="f">కొత్త వాహనం · New vehicle no<input id="vV" autocapitalize="characters" placeholder="TS09AB1234"></label>
+   <label class="f">ఎక్కడ నుండి · From place<input id="vP" value="${esc(S.shop.place||'')}"></label>
+   <div class="chips">${EWB_VEH.map(([k,v],i)=>`<button class="chip ${(s.ewb.vehicle?i===0:k==='4')?'on':''}" data-r="${k}">${v}</button>`).join('')}</div>
+   <button class="act green" id="vOk">${I.check} సేవ్ · Save</button><button class="act ghost" id="vNo">వెనక్కి · Back</button>`);
+  let code=s.ewb.vehicle?'1':'4'; document.querySelectorAll('[data-r]').forEach(b=>b.onclick=()=>{ code=b.dataset.r; document.querySelectorAll('[data-r]').forEach(x=>x.classList.toggle('on',x===b)); });
+  $('#vNo').onclick=closeSheet;
+  $('#vOk').onclick=async()=>{
+    const v=vehNorm($('#vV').value); if(!vehOk(v)){ toast('Vehicle number looks wrong'); return; }
+    let validUpto=s.ewb.validUpto;
+    if(s.ewb.via==='direct' && ewbLinkReady()){
+      busy('వాహనం మారుస్తోంది…');
+      try{ const r=await KK.ewb.vehicle({ewbNo:Number(s.ewb.no), vehicleNo:v, fromPlace:$('#vP').value.trim()||S.shop.place||'', fromState:Number(shopState()), reasonCode:code, reasonRem:EWB_VEH.find(x=>x[0]===code)[1].split('· ')[1], transDocNo:'', transDocDate:'', transMode:'1', vehicleType:'R'}); if(r&&r.validUpto) validUpto=r.validUpto; }
+      catch(err){ closeSheet(); toast((err&&err.message)||'Could not update'); return; }
+    } else toast('Update the vehicle on the portal too (Update Vehicle No).');
+    await saveSale({...s, ewb:{...s.ewb, vehicle:v, validUpto}, ship:{...(s.ship||{}), vehicle:v}}); closeSheet(); render();
+  };
+}
+
+function ewbPendingCard(){
+  const pend=S.sales.filter(s=>s.ewb&&s.ewb.status==='pending').sort((a,b)=>b.t.localeCompare(a.t));
+  const m=S.gm||thisMonth(); const done=S.sales.filter(s=>s.ewb&&s.ewb.status==='done'&&ld(s.ewb.at).slice(0,7)===m);
+  if(!pend.length && !done.length) return '';
+  return `<div class="card"><h3>🚚 ఈ-వే బిల్లులు · E-way bills</h3>
+    ${pend.length?`<div style="color:#8a4a00;font-weight:700">${pend.length} still to be made</div>${pend.map(s=>`<button class="line" style="width:100%;text-align:left;background:none;border:0" data-a="ewbOpen" data-id="${s.id}"><div class="grow"><div class="nm">${esc(s.inv)} · ${esc((s.buyer&&s.buyer.name)||(s.party&&s.party.name)||'')}</div><div class="sub">${rs(calcInvoice(s).total)}${ewbProblems(s).length?' · ⚠ '+esc(ewbProblems(s)[0]):''}</div></div></button>`).join('')}
+      ${ewbLinkReady()?'':`<button class="act ghost" data-a="ewbAll">${I.book} అన్నీ ఒకే ఫైల్ · One portal file for all</button>`}`:''}
+    ${done.length?`<div class="note">${done.length} made this month: ${done.map(s=>esc(ewbFmt(s.ewb.no))).join(', ')}</div>`:''}</div>`;
+}
+/* ---- settings: direct link (no portal login) ---- */
+function ewbLinkCard(){
+  const L=S.ewbLink; const desk=window.KK && KK.mode==='desktop';
+  const st = L&&L.ready ? `<span class="pill good">✓ ${L.practice?'Practice link on (not real e-way bills)':'Connected · '+esc(L.user||'')}</span>` : `<span class="pill warn">Not set up</span>`;
+  return `<div class="card"><h3>🚚 ఈ-వే బిల్లు లింక్ · E-way bill direct link</h3>${st}
+   <p class="note">With this, bills are made from the app. Nobody logs in to the portal. The login details stay only on the shop computer.</p>
+   ${desk?`<ol style="padding-left:22px;line-height:1.6;margin:4px 0">
+     <li>Once only: log in at <b>ewaybillgst.gov.in</b> with your shop login.</li>
+     <li><b>Registration → For GSP</b> → OTP → <b>Add/New</b> → choose our partner${L&&L.partner?' <b>'+esc(L.partner)+'</b>':''} → make an API username and password.</li>
+     <li>Type them below and press <b>Test</b>.</li></ol>
+   <div class="chips" style="flex-wrap:wrap"><button class="chip ${!L||L.provider!=='gsp'?'on':''}" data-a="ewbProv" data-v="practice">అభ్యాసం · Practice</button><button class="chip ${L&&L.provider==='gsp'?'on':''}" data-a="ewbProv" data-v="gsp">నిజమైనది · Real (GSP partner)</button></div>
+   ${S.ewbProv==='gsp'||(L&&L.provider==='gsp'&&S.ewbProv!=='practice')?`<div class="fgrid">
+     <label class="f w">API username<input id="ewU" value="${esc(L&&L.username||'')}" autocomplete="off"></label>
+     <label class="f w">API password<input id="ewP" type="password" placeholder="${L&&L.hasPassword?'(saved)':''}" autocomplete="new-password"></label></div>
+     <details><summary class="note">Partner details (filled once by us)</summary><div class="fgrid">
+      <label class="f w">Partner name<input id="ewN" value="${esc(L&&L.partner||'')}"></label>
+      <label class="f w">Address (URL)<input id="ewB" value="${esc(L&&L.baseUrl||'')}" placeholder="https://…"></label>
+      <label class="f">Client ID<input id="ewC" value="${esc(L&&L.clientId||'')}"></label>
+      <label class="f">Client secret<input id="ewS" type="password" placeholder="${L&&L.hasSecret?'(saved)':''}"></label></div></details>`:`<p class="note">Practice makes pretend numbers so you can learn the steps. They are marked PRACTICE and are not valid on the road.</p>`}
+   <div class="btnrow"><button class="act green" data-a="ewbSave">${I.check} సేవ్ · Save</button><button class="act ghost" data-a="ewbTest">పరీక్ష · Test</button></div>`
+   :`<p class="note">${window.KK&&KK.mode==='paired'?'Set this up on the shop computer. Phones then use it automatically.':'Needs the shop computer. On this phone, use the portal file.'}</p>`}
+  </div>`;
+}
+async function ewbSaveLink(test){
+  const prov=S.ewbProv||(S.ewbLink&&S.ewbLink.provider)||'practice'; const v=id=>{ const el=$('#'+id); return el?el.value.trim():undefined; };
+  const cfg={provider:prov, gstin:gstin(), username:v('ewU'), password:v('ewP')||undefined, partner:v('ewN'), baseUrl:v('ewB'), clientId:v('ewC'), clientSecret:v('ewS')||undefined};
+  try{ await KK.ewb.setup(cfg); await refreshEwbLink(); if(test){ busy('పరీక్షిస్తోంది… Testing'); const r=await KK.ewb.test(); closeSheet(); toast(r&&r.ok?'✓ Link works':'Link did not work'); } else toast('Saved'); }
+  catch(err){ closeSheet(); toast((err&&err.message)||'Could not save'); }
+  render();
 }
 
 /* ---- purchase register (input tax credit) ---- */
@@ -1779,15 +2086,19 @@ function gstSettingsCard(){
       <option value="unregistered" ${regType()==='unregistered'?'selected':''}>Not registered</option></select></label>
     <label class="f w">రాష్ట్రం · State<select id="sSt">${Object.entries(STATES).map(([k,v])=>`<option value="${k}" ${shopState()===k?'selected':''}>${k} - ${v}</option>`).join('')}</select></label>
     <label class="f w">షాప్ చిరునామా · Shop address (prints on invoice)<input id="sAd" value="${esc(sh.address||'')}"></label>
-    <label class="f">బిల్లు ముందు అక్షరాలు · Invoice prefix<input id="sPre" maxlength="6" value="${esc(sh.prefix||'KK')}"></label>
-    <div class="note" style="align-self:end">Next: ${esc((sh.prefix||'KK').toUpperCase())}/${fyOf(new Date()).slice(0,2)}-${fyOf(new Date()).slice(2)}/${String(((sh.series||{})[fyOf(new Date())]||0)+1).padStart(4,'0')}</div>
+    <label class="f">ఊరు · Town<input id="sPl" value="${esc(sh.place||'')}"></label>
+    <label class="f">పిన్ కోడ్ · PIN<input id="sPin" inputmode="numeric" maxlength="6" value="${esc(sh.pin||'')}"></label>
+    <label class="f">బిల్లు ముందు అక్షరాలు · Invoice prefix<input id="sPre" maxlength="4" value="${esc(sh.prefix||'KK')}"></label>
+    <div class="note" style="align-self:end">Next: ${esc(invNo(sh.prefix, fyOf(new Date()), devCode(), ((sh.series||{})[fyOf(new Date())]||0)+1))}</div>
+    <label class="f w">ఈ-వే బిల్లు పరిమితి (రాష్ట్రంలో) · E-way bill limit inside the state ₹<input id="sEwb" inputmode="numeric" value="${esc(sh.ewbLimit||50000)}"></label>
    </div>
    ${sh.gstin&&!gstinValid(sh.gstin)?`<span class="pill bad">✗ Your GSTIN looks wrong. Check it.</span>`:''}
-   <p class="note">Numbers restart every financial year (April). Prices are taken as GST-inclusive (MRP); the invoice works out taxable value and CGST/SGST, or IGST for buyers from another state.</p></div>`;
+   <p class="note">Telangana: e-way bill above ₹50,000, inside the state and to other states. Numbers restart every financial year (April); GST allows at most 16 characters. Prices are taken as GST-inclusive (MRP); the invoice works out taxable value and CGST/SGST, or IGST for buyers from another state.</p></div>`;
 }
 function readGstSettings(){
   if(!$('#sReg')) return;
-  S.shop.reg=$('#sReg').value; S.shop.state=$('#sSt').value; S.shop.address=$('#sAd').value.trim(); S.shop.prefix=($('#sPre').value.trim()||'KK').toUpperCase().replace(/[^A-Z0-9]/g,'');
+  S.shop.reg=$('#sReg').value; S.shop.state=$('#sSt').value; S.shop.address=$('#sAd').value.trim(); S.shop.prefix=(($('#sPre').value.trim()||'KK').toUpperCase().replace(/[^A-Z0-9]/g,'')||'KK').slice(0,4);
+  S.shop.place=$('#sPl').value.trim(); S.shop.pin=$('#sPin').value.trim(); S.shop.ewbLimit=num($('#sEwb').value)||50000;
 }
 
 /* ---- monthly GST report ---- */
@@ -1824,6 +2135,7 @@ function vGst(){
     <div class="tile ${R.net>0?'alert':''}"><div class="n">${rs(Math.max(0,R.net))}</div><div class="l">${R.net>=0?'కట్టాల్సిన GST (అంచనా) · Approx. tax to pay':'Credit carried forward '+rs(-R.net)}</div></div>`}
   </div>
   <button class="act green" data-a="gstExport">${I.book} Excel డౌన్‌లోడ్ · Download Excel for CA / Tally</button>
+  ${ewbPendingCard()}
   ${comp?'':`<div class="card"><h3>రేటు వారీగా · Rate-wise sales (GSTR-3B 3.1)</h3>
     ${tbl(['GST %','Taxable','CGST','SGST','IGST'], R.rate.map(r=>`<tr><td>${r.g}%</td><td class="r">${rs2(r.taxable)}</td><td class="r">${rs2(r.cgst)}</td><td class="r">${rs2(r.sgst)}</td><td class="r">${rs2(r.igst)}</td></tr>`))}
     <p class="note">0% rows are exempt (seeds): ${rs2(R.exempt)}.</p></div>
@@ -2024,7 +2336,7 @@ function ledgerRows(p){
 function vLedger(){
   const p=S.parties.find(x=>x.id===S.ledgerId); if(!p) return `<div class="empty">Not found</div>`;
   const rows=ledgerRows(p);
-  return `<div class="card"><div class="party"><div class="av">${esc(p.name.charAt(0).toUpperCase())}</div><div style="flex:1"><b style="font-size:20px">${esc(p.name)}</b><div class="note">${isSupplier(p)?'Supplier':'Customer'}${p.village?' · '+esc(p.village):''}${p.gstin?' · '+esc(p.gstin):''}${p.phone?' · '+esc(p.phone):''}</div></div><div class="due">${rs(p.due)}</div></div></div>
+  return `<div class="card"><div class="party"><div class="av">${esc(p.name.charAt(0).toUpperCase())}</div><div style="flex:1"><b style="font-size:20px">${esc(p.name)}</b><div class="note">${isSupplier(p)?'Supplier':(p.kind==='dealer'?'Dealer':'Customer')}${p.village||p.place?' · '+esc(p.village||p.place):''}${p.gstin?' · '+esc(p.gstin):''}${p.phone?' · '+esc(p.phone):''}</div></div><div class="due">${rs(p.due)}</div></div></div>
   <div class="card" style="overflow-x:auto"><table class="gt"><thead><tr><th>Date</th><th>Entry</th><th class="r">${isSupplier(p)?'Paid':'Bill'}</th><th class="r">${isSupplier(p)?'Bill':'Paid'}</th><th class="r">Balance</th></tr></thead>
   <tbody>${rows.map(r=>`<tr><td>${new Date(r.t).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'})}</td><td>${esc(r.what)}</td><td class="r">${r.dr?rs(r.dr):''}</td><td class="r">${r.cr?rs(r.cr):''}</td><td class="r"><b>${rs(r.bal)}</b></td></tr>`).join('')||'<tr><td colspan="5" class="note">No entries</td></tr>'}</tbody></table></div>
   ${Math.abs(r2(rows.length?rows[rows.length-1].bal:0)-num(p.due))>1?`<p class="note">Some older entries were made before the ledger existed, so the running balance may differ from the current balance of ${rs(p.due)}.</p>`:''}
@@ -2146,7 +2458,7 @@ function returnSheet(){
     if(!items.length){ toast('Enter how many came back'); return; }
     const amount=Math.round(items.reduce((a,i)=>a+i.qty*i.rate,0));
     const fy=fyOf(new Date()); const cnN=bumpCounter('cn', fy); const dc=devCode();
-    const cn=`CN/${fy.slice(0,2)}-${fy.slice(2)}/${dc?dc+'-':''}${String(cnN).padStart(4,'0')}`;
+    const cn=invNo('CN', fy, dc, cnN);
     if(how==='adjust' && !s.party){ toast('Cash bill: choose a refund mode'); return; }
     for(const i of items){ const p=S.products.find(x=>x.id===i.pid); if(p){ const loc={...p.loc}; const l=i.from||'counter'; loc[l]=at(p,l)+i.qty; await put('products',{...p,loc}); } }
     if(s.party){ const p=S.parties.find(x=>x.id===s.party.id); if(p && how==='adjust') await bumpParty(p,-amount,{type:'return',amt:amount,ref:cn}); }
@@ -2305,10 +2617,10 @@ function parseEinvoiceQR(txt){
     return {gstin:String(p.SellerGstin||'').toUpperCase(), buyer:String(p.BuyerGstin||'').toUpperCase(), no:String(p.DocNo||''), date:m?`${m[3]}-${m[2]}-${m[1]}`:(/^\d{4}-\d{2}-\d{2}$/.test(d)?d:''), total:num(p.TotInvVal), items:num(p.ItemCnt), hsn:String(p.MainHsnCode||''), irn:String(p.Irn||''), type:String(p.DocTyp||'')};
   }catch(e){ return null; }
 }
-async function findQR(blob){
+async function findQR(blob, parse=parseEinvoiceQR){
   try{
     const bmp=await createImageBitmap(blob);
-    if('BarcodeDetector' in window){ try{ const det=new BarcodeDetector({formats:['qr_code']}); const r=await det.detect(bmp); for(const c of r){ const q=parseEinvoiceQR(c.rawValue); if(q) return q; } }catch(e){} }
+    if('BarcodeDetector' in window){ try{ const det=new BarcodeDetector({formats:['qr_code']}); const r=await det.detect(bmp); for(const c of r){ const q=parse(c.rawValue); if(q) return q; } }catch(e){} }
     await loadJsQR();
     const tries=[[0,0,1,1],[0,0,1,.5],[0,.5,1,.5],[.5,0,.5,.5],[0,0,.5,.5]];
     for(const [x,y,w,h] of tries){
@@ -2316,7 +2628,7 @@ async function findQR(blob){
       const c=document.createElement('canvas'); c.width=Math.round(sw*sc); c.height=Math.round(sh*sc);
       const g=c.getContext('2d',{willReadFrequently:true}); g.drawImage(bmp, bmp.width*x, bmp.height*y, sw, sh, 0, 0, c.width, c.height);
       const d=g.getImageData(0,0,c.width,c.height); const code=window.jsQR(d.data, c.width, c.height, {inversionAttempts:'attemptBoth'});
-      if(code){ const q=parseEinvoiceQR(code.data); if(q) return q; }
+      if(code){ const q=parse(code.data); if(q) return q; }
     }
   }catch(e){}
   return null;
@@ -2558,7 +2870,8 @@ function bind(){
   });
   const s=$('#search'); if(s){ s.oninput=()=>{ S.q=s.value; const pos=s.selectionStart; render(); const n=$('#search'); n.focus(); try{n.setSelectionRange(pos,pos);}catch(e){} }; }
   const icq=$('#inCatQ'); if(icq){ icq.oninput=()=>{ S.inCatQ=icq.value; const pos=icq.selectionStart; render(); const n=$('#inCatQ'); n.focus(); try{n.setSelectionRange(pos,pos);}catch(e){} }; }
-  const bg=$('#bG'); if(bg){ bg.onchange=()=>{ cart().gstin=bg.value.trim().toUpperCase(); render(); }; const ba=$('#bA'); ba.oninput=()=>cart().addr=ba.value; }
+  const bg=$('#bG'); if(bg){ bg.onchange=()=>{ syncCartInputs(); const c=cart(); const d=gstinValid(c.gstin)&&S.parties.find(p=>!isSupplier(p)&&p.gstin===c.gstin); if(d){ Object.assign(c,{farmer:c.farmer||d.name, addr:c.addr||d.address||'', place:c.place||d.place||'', pin:c.pin||d.pin||''}); } render(); }; }
+  ['bA','bPl','bPin','shV','shK','shT','shTi','shP','shPl'].forEach(id=>{ const el=$('#'+id); if(el) el.oninput=syncCartInputs; });
   ['pf','pt'].forEach(id=>{ const el=$('#'+id); if(el) el.onchange=()=>{ S[id]=el.value; render(); }; });
   const dd=$('#dayD'); if(dd) dd.onchange=()=>{ S.dayD=dd.value; render(); };
   const bq=$('#bizQ'); if(bq){ bq.oninput=()=>S.bizQ=bq.value; bq.onkeydown=e=>{ if(e.key==='Enter') askBiz(bq.value.trim()); }; }
@@ -2572,7 +2885,22 @@ function act(a,b){
   const c=S.cart;
   switch(a){
     case 'help': say(HELP[S.view]||HELP.home); break;
-    case 'b2b': { const c=cart(); const f=$('#fName'); if(f) c.farmer=f.value; c.b2b=b.dataset.v==='1'; render(); break; }
+    case 'b2b': { const c=cart(); const f=$('#fName'); if(f) c.farmer=f.value; syncCartInputs(); c.b2b=b.dataset.v==='1'; if(c.ship && !c.ship.touched) c.ship.on=c.b2b; repriceCart(); render(); break; }
+    case 'pickDealer': { const p=S.parties.find(x=>x.id===b.dataset.id); if(p){ const c=cart(); Object.assign(c,{farmer:p.name, gstin:p.gstin||'', addr:p.address||'', place:p.place||p.village||'', pin:p.pin||'', phone:p.phone||''}); if(c.ship&&p.km) c.ship.km=String(p.km); else if(p.km) c.shipKm=p.km; render(); } break; }
+    case 'shipOn': { const c=cart(); syncCartInputs(); if(!c.ship) c.ship={on:false,vehicle:'',km:'',tr:'',trId:'',pin:'',place:''}; c.ship.on=b.dataset.v==='1'; c.ship.touched=true; if(c.ship.on && !c.ship.km && c.b2b){ const d=S.parties.find(p=>p.gstin&&p.gstin===c.gstin); if(d&&d.km) c.ship.km=String(d.km); } render(); break; }
+    case 'rate': { const c=cart(); const it=c.items[+b.dataset.i]; if(!it) break; syncCartInputs(); numpad('ధర · Price for one '+(it.unit||''), Math.round(it.rate), v=>{ if(v>0){ it.rate=v; it.manual=true; } closeSheet(); render(); }); break; }
+    case 'ewbStart': ewbStartSheet(b.dataset.id); break;
+    case 'ewbGen': ewbGenerate(b.dataset.id); break;
+    case 'ewbJson': { const s=S.sales.find(x=>x.id===b.dataset.id); if(s) ewbDownload([s]); break; }
+    case 'ewbAll': ewbDownload(S.sales.filter(s=>s.ewb&&s.ewb.status==='pending')); break;
+    case 'ewbEnter': ewbEnterSheet(b.dataset.id); break;
+    case 'ewbScan': ewbScan(b.dataset.id); break;
+    case 'ewbCancel': ewbCancelSheet(b.dataset.id); break;
+    case 'ewbVeh': ewbVehSheet(b.dataset.id); break;
+    case 'ewbOpen': S.billId=b.dataset.id; go('bill'); break;
+    case 'ewbProv': S.ewbProv=b.dataset.v; render(); break;
+    case 'ewbSave': ewbSaveLink(false); break;
+    case 'ewbTest': ewbSaveLink(true); break;
     case 'gstExport': gstExport(); break;
     case 'vRec': receiptSheet(null); break;
     case 'vPay': paymentSheet(null); break;

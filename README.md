@@ -32,6 +32,27 @@ Bills enter themselves from a photo. Telugu first, works without internet.
    (or the computer joined to the phone's hotspot).
 6. Photograph the last few company bills and the old khata pages so the shop starts with real stock and dues.
 
+## Dealer sales and e-way bills
+
+**Dealer sale:** on Sell, tap **డీలర్ / రిటైలర్ · Dealer (B2B)**. Type or pick the dealer, then the GSTIN, town and PIN. Dealer prices are remembered for each product, and you can tap any price to change it.
+
+**When is an e-way bill needed?** When goods worth more than ₹50,000 move by vehicle. In Telangana this applies inside the state and to other states. Seeds (0% GST, exempt) are not counted. The app shows the e-way bill box by itself when it is needed.
+
+**Three ways to make it:**
+1. **Direct, with no portal login.** This needs a one-time setup on the shop computer, under Settings → E-way bill link:
+   - Log in at ewaybillgst.gov.in.
+   - Go to **Registration → For GSP**, enter the OTP, choose **Add/New**, choose our partner, and make an API username and password.
+   - Type them into the app and press **Test**.
+   - After that, every dealer bill makes its e-way bill by itself, even from the phone. The phone needs to be on the shop Wi-Fi.
+2. **Portal file:** tap **Portal file**. On ewaybillgst.gov.in, go to e-Way Bill → **Generate Bulk** and upload the file. Then type the number into the app, or photograph the e-way bill's QR.
+3. **Made elsewhere:** type the 12-digit number.
+
+Once the bill has an e-way bill, you can send it to the driver on WhatsApp, change the vehicle, or cancel it within 24 hours.
+
+**Practice mode** makes pretend numbers so staff can learn the steps. These are marked PRACTICE everywhere and are not valid on the road.
+
+Invoice numbers now have at most 16 characters, as GST requires: `KK/2627/0001` on the computer, `KK/2627/B0001` on phone B.
+
 ## Checking bill photos
 
 Every bill photo goes through:

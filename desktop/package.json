@@ -23,7 +23,7 @@
   "build": {
     "appId": "in.krishikhata.desktop",
     "productName": "Krishi Khata",
-    "files": ["main.js", "server.js", "web/**", "build/icon.png", "package.json"],
+    "files": ["main.js", "server.js", "ewb.js", "web/**", "build/icon.png", "package.json"],
     "directories": { "output": "dist", "buildResources": "build" },
     "asarUnpack": ["node_modules/tesseract.js/**", "node_modules/tesseract.js-core/**", "node_modules/@tesseract.js-data/**"],
     "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "build/icon.ico" },

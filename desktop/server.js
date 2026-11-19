@@ -11,6 +11,7 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 const crypto = require('crypto');
+const { makeEwb } = require('./ewb');
 
 const MIME = {'.html':'text/html; charset=utf-8','.js':'text/javascript; charset=utf-8','.css':'text/css','.json':'application/json','.png':'image/png','.jpg':'image/jpeg','.svg':'image/svg+xml','.woff2':'font/woff2','.woff':'font/woff','.ico':'image/x-icon','.webmanifest':'application/manifest+json'};
 const MODELS = {quick:'claude-haiku-5-5', default:'claude-sonnet-5-5', complex:'claude-opus-5-5'};
@@ -57,6 +58,10 @@ function start(opts={}){
     if(!tok) return null;
     return Object.values(settings.devices).find(d=>d.token && crypto.timingSafeEqual(Buffer.from(d.token.padEnd(64)), Buffer.from(String(tok).padEnd(64).slice(0,64)))) || null;
   }
+  /* each paired phone gets a short letter (B, C, …) used in its own invoice series, so numbers stay within 16 characters */
+  function nextDevCode(){ const used=new Set(Object.values(settings.devices).map(d=>d.code)); const A='BCDEFGHJKLMNPQRSTUVWXYZ'; for(const a of A) if(!used.has(a)) return a; for(const a of A) for(const b of A) if(!used.has(a+b)) return a+b; return 'X'; }
+  for(const d of Object.values(settings.devices)) if(!d.code){ d.code=nextDevCode(); }
+  const ewb = makeEwb({settings, saveSettings, log});
   function lanAddrs(){ const out=[]; for(const list of Object.values(os.networkInterfaces())) for(const n of list||[]) if(n.family==='IPv4' && !n.internal) out.push(`${n.address}:${PORT}`); return out.length?out:[`127.0.0.1:${PORT}`]; }
 
   /* ---------- live updates (server-sent events) ---------- */
@@ -109,9 +114,10 @@ function start(opts={}){
           if(!pairCode || Date.now()>pairCode.exp || String(b.code)!==pairCode.code) return send(res, 403, {error:'bad_code'});
           const id=String(b.deviceId||'').slice(0,40)||('d_'+crypto.randomBytes(4).toString('hex'));
           const token=crypto.randomBytes(24).toString('hex');
-          settings.devices[id]={id, name:String(b.name||'Phone').slice(0,40), role:pairCode.role, token, pairedAt:new Date().toISOString(), lastSeen:new Date().toISOString()};
-          saveSettings(); log('paired', id, settings.devices[id].name);
-          return send(res, 200, {token, role:pairCode.role, shopName:shopName()});
+          const code=(settings.devices[id]&&settings.devices[id].code)||nextDevCode();
+          settings.devices[id]={id, name:String(b.name||'Phone').slice(0,40), role:pairCode.role, token, code, pairedAt:new Date().toISOString(), lastSeen:new Date().toISOString()};
+          saveSettings(); log('paired', id, settings.devices[id].name, code);
+          return send(res, 200, {token, role:pairCode.role, shopName:shopName(), code});
         }
         const dev = deviceFor(req, url);
         if(!dev) return send(res, 401, {error:'not_paired'});
@@ -150,6 +156,12 @@ function start(opts={}){
           const b=await body(req, 1e5); presence.set(dev.id, {ts:Date.now(), name:dev.local?'Shop computer':(dev.name||''), presence:b.presence||{}});
           broadcast('peers', peersList()); return send(res, 200, {peers:peersList()});
         }
+        if(p==='/api/me') return send(res, 200, {id:dev.id, role:dev.role, name:dev.name, code:dev.local?'':(dev.code||''), local:!!dev.local});
+        /* e-way bills: any paired device may make one; cancelling is for the owner */
+        if(p==='/api/ewb/status') return send(res, 200, dev.local?ewb.details():ewb.status());
+        if(p==='/api/ewb/generate' && req.method==='POST'){ const b=await body(req,1e6); return send(res, 200, await ewb.generate(b.payload)); }
+        if(p==='/api/ewb/vehicle' && req.method==='POST'){ const b=await body(req,1e5); return send(res, 200, await ewb.vehicle(b)); }
+        if(p==='/api/ewb/cancel' && req.method==='POST'){ if(dev.role!=='owner') return send(res, 403, {error:'Only the owner can cancel an e-way bill'}); const b=await body(req,1e5); return send(res, 200, await ewb.cancel(b)); }
         if(p==='/api/devices'){ const list=Object.values(settings.devices).map(({token,...d})=>d); const names={}; list.forEach(d=>names[d.id]=d.name); names[dev.id]=names[dev.id]||dev.name; return send(res, 200, {list, names}); }
         if(p==='/api/ai' && req.method==='POST'){ const b=await body(req); const text=await ai(b); return send(res, 200, {text}); }
         if(p==='/api/ocr' && req.method==='POST'){ const b=await body(req); try{ return send(res, 200, await ocr(b.image)); }catch(e){ return send(res, 501, {error:'ocr_unavailable', message:e.message}); } }
@@ -160,6 +172,8 @@ function start(opts={}){
         if(p==='/api/devices/remove' && req.method==='POST'){ const b=await body(req,1e4); delete settings.devices[b.id]; saveSettings(); return send(res, 200, {ok:true}); }
         if(p==='/api/admin' && req.method==='GET') return send(res, 200, {hasKey:!!settings.aiKey, backupDir:BKD, extraBackupDir:settings.extraBackupDir||'', lastBackup:settings.lastBackup||'', addrs:lanAddrs(), dataDir:DATA});
         if(p==='/api/admin' && req.method==='POST'){ const b=await body(req,1e5); if(typeof b.aiKey==='string') settings.aiKey=b.aiKey.trim(); if(typeof b.extraBackupDir==='string') settings.extraBackupDir=b.extraBackupDir; if(b.models) settings.models=b.models; saveSettings(); return send(res, 200, {ok:true}); }
+        if(p==='/api/ewb/setup' && req.method==='POST'){ const b=await body(req,1e5); return send(res, 200, ewb.setup(b)); }
+        if(p==='/api/ewb/test' && req.method==='POST'){ return send(res, 200, await ewb.test()); }
         if(p==='/api/backup-now' && req.method==='POST'){ backupNow(); return send(res, 200, {ok:true, at:settings.lastBackup}); }
         if(p==='/api/export'){ return send(res, 200, store, {'Content-Disposition':'attachment; filename="krishi-khata-export.json"'}); }
         return send(res, 404, {error:'not_found'});

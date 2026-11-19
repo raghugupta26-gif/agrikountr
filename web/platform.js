@@ -266,7 +266,28 @@ async function ocr(blob){
 
 /* ---------- public entry point the app calls ---------- */
 let ready = null;
-function init(){ if(!ready) ready=(async()=>{ await loadStore(); await detectMode(); if(MODE==='paired'||MODE==='desktop'){ startLive(); syncNow(); sendPresence(); } })(); return ready; }
+function init(){ if(!ready) ready=(async()=>{ await loadStore(); await detectMode(); if(MODE==='paired'||MODE==='desktop'){ startLive(); syncNow(); sendPresence(); }
+  if(MODE==='paired' && !cfg.devCode){ try{ const j=await api('/api/me', {timeout:4000}); if(j&&j.code){ cfg.devCode=j.code; saveCfg(); } }catch(e){} } })(); return ready; }
+
+/* ---------- e-way bills through the shop computer (login details stay there) ---------- */
+async function ewbCall(path, body){
+  if(MODE!=='paired' && MODE!=='desktop') throw {message:'This needs the shop computer. Use the portal file on this phone.'};
+  try{ return await api(path, body===undefined?{}:{method:'POST', body:JSON.stringify(body), timeout:60000}); }
+  catch(e){
+    let m=e&&e.message; try{ const j=JSON.parse(m); m=j.error||m; }catch(x){}
+    if(e&&e.code==='unauthorized') m='This phone is not connected to the shop computer.';
+    else if(e&&(e.name==='AbortError'||e.name==='TypeError'||!m)) m=online?'The shop computer did not answer in time. Try again.':'Shop computer not reachable. Come to the shop Wi-Fi, or use the portal file.';
+    throw {message:m};
+  }
+}
+const ewbApi = {
+  status: ()=> (MODE==='paired'||MODE==='desktop') ? api('/api/ewb/status',{timeout:5000}).catch(()=>({ready:false})) : Promise.resolve({ready:false}),
+  generate: p=>ewbCall('/api/ewb/generate', {payload:p}),
+  cancel: b=>ewbCall('/api/ewb/cancel', b),
+  vehicle: b=>ewbCall('/api/ewb/vehicle', b),
+  setup: b=>ewbCall('/api/ewb/setup', b),
+  test: ()=>ewbCall('/api/ewb/test', {})
+};
 window.claude = { use: async(name)=>{
   await init();
   if(MODE==='new') return name==='tts'?tts:(name==='dictation'?makeDictation():(name==='downloads'?downloads:(name==='db'?db:(name==='user'?user:null))));
@@ -278,7 +299,7 @@ window.claude = { use: async(name)=>{
 }};
 
 /* ---------- pairing and settings screen (outside the app's own screens) ---------- */
-const KK = window.KK = { get mode(){ return MODE; }, get online(){ return online; }, cfg, ocr, syncNow, open:openLink, needsPairing:false };
+const KK = window.KK = { get mode(){ return MODE; }, get online(){ return online; }, get devCode(){ return MODE==='paired'?(cfg.devCode||''):''; }, cfg, ocr, syncNow, open:openLink, ewb:ewbApi, needsPairing:false };
 function el(html){ const d=document.createElement('div'); d.innerHTML=html.trim(); return d.firstChild; }
 function closeLink(){ const o=document.getElementById('kkLink'); if(o) o.remove(); }
 async function openLink(){
@@ -345,7 +366,7 @@ async function pairWith(addr, code, name, msg, alts){
       const r = await fetch(a.replace(/\/$/,'')+'/api/pair', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({code:String(code), deviceId:cfg.deviceId, name:name||('Phone '+cfg.deviceId.slice(-4))})});
       const j = await r.json().catch(()=>({}));
       if(!r.ok){ msg(j.error==='bad_code'?'కోడ్ తప్పు లేదా గడువు అయింది · Wrong or expired code. Make a new one on the computer.':'Could not connect: '+(j.error||r.status)); return; }
-      cfg.server=a.replace(/\/$/,''); cfg.token=j.token; cfg.role=j.role||'staff'; cfg.shopName=j.shopName||''; cfg.deviceName=name||cfg.deviceName||''; cfg.alone=false; saveCfg();
+      cfg.server=a.replace(/\/$/,''); cfg.token=j.token; cfg.devCode=j.code||''; cfg.role=j.role||'staff'; cfg.shopName=j.shopName||''; cfg.deviceName=name||cfg.deviceName||''; cfg.alone=false; saveCfg();
       msg('✅ కలిసింది · Connected. Loading shop data…'); setTimeout(()=>location.reload(), 600); return;
     }catch(e){ /* try next address */ }
   }
