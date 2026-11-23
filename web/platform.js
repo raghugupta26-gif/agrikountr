@@ -1,4 +1,4 @@
-/* Krishi Khata platform layer.
+/* AgriKountr platform layer.
    Gives the app the same `claude.use(...)` services it had in the prototype, but runs on its own:
    - db:       local store on this device (IndexedDB) + sync with the shop computer over Wi-Fi
    - user:     this device and its role (owner / staff)
@@ -31,7 +31,7 @@ async function detectMode(){
   if(!IS_NATIVE && /^https?:$/.test(location.protocol)){
     try{
       const r = await fetch('/api/info', {cache:'no-store'});
-      if(r.ok){ const j = await r.json(); if(j && j.app==='krishi-khata'){
+      if(r.ok){ const j = await r.json(); if(j && j.app==='agrikountr'){
         BASE = location.origin;
         if(j.local){ MODE='desktop'; cfg.role='owner'; cfg.token='local'; cfg.shopName=j.shopName||''; saveCfg(); return; }
         if(cfg.token && cfg.server===BASE){ MODE='paired'; return; }
@@ -48,7 +48,7 @@ const docs = new Map();         // path -> data
 let pending = [];                // [{path, data|null, ts}]
 let cursor = 0;
 let idb = null;
-function idbOpen(){ return new Promise(res=>{ try{ const q=indexedDB.open('krishi-khata',1); q.onupgradeneeded=()=>{ q.result.createObjectStore('docs'); q.result.createObjectStore('meta'); }; q.onsuccess=()=>res(q.result); q.onerror=()=>res(null); }catch(e){ res(null); } }); }
+function idbOpen(){ return new Promise(res=>{ try{ const q=indexedDB.open('agrikountr',1); q.onupgradeneeded=()=>{ q.result.createObjectStore('docs'); q.result.createObjectStore('meta'); }; q.onsuccess=()=>res(q.result); q.onerror=()=>res(null); }catch(e){ res(null); } }); }
 function idbAll(store){ return new Promise(res=>{ if(!idb) return res([]); const out=[]; const tx=idb.transaction(store,'readonly'); const c=tx.objectStore(store).openCursor(); c.onsuccess=()=>{ const cur=c.result; if(cur){ out.push([cur.key, cur.value]); cur.continue(); } else res(out); }; c.onerror=()=>res(out); }); }
 function idbPut(store, key, val){ if(!idb) return; try{ const tx=idb.transaction(store,'readwrite'); if(val===undefined) tx.objectStore(store).delete(key); else tx.objectStore(store).put(val, key); }catch(e){} }
 async function loadStore(){
@@ -332,8 +332,8 @@ async function openLink(){
   }
   /* new phone: pair */
   s.innerHTML = `<h2>షాప్ కంప్యూటర్‌తో కలపండి · Connect to the shop computer</h2>
-    <p>1. కంప్యూటర్‌లో Krishi Khata తెరిచి <b>📱 ఫోన్ కలపండి</b> నొక్కండి.<br>2. ఫోన్ అదే Wi-Fi లో ఉండాలి.<br>3. స్క్రీన్ మీద QR ఫోటో తీయండి.</p>
-    <p class="note">Open Krishi Khata on the computer, tap “📱 Connect phone”, stay on the same Wi-Fi, then photograph the QR code on the screen.</p>
+    <p>1. కంప్యూటర్‌లో AgriKountr తెరిచి <b>📱 ఫోన్ కలపండి</b> నొక్కండి.<br>2. ఫోన్ అదే Wi-Fi లో ఉండాలి.<br>3. స్క్రీన్ మీద QR ఫోటో తీయండి.</p>
+    <p class="note">Open AgriKountr on the computer, tap “📱 Connect phone”, stay on the same Wi-Fi, then photograph the QR code on the screen.</p>
     <button class="act green" id="kkQR" style="min-height:90px;font-size:22px">📷 QR ఫోటో తీయండి · Photograph the QR</button>
     <details><summary class="note">QR పని చేయకపోతే · Type the address instead</summary>
       <div class="fgrid" style="margin-top:8px"><label class="f w">Computer address<input id="kkAddr" placeholder="192.168.1.20:8765" inputmode="url"></label>
@@ -348,7 +348,7 @@ async function openLink(){
   s.querySelector('#kkQR').onclick=()=>{ const inp=document.createElement('input'); inp.type='file'; inp.accept='image/*'; inp.capture='environment';
     inp.onchange=async()=>{ const f=inp.files&&inp.files[0]; if(!f) return; msg('QR చదువుతోంది… Reading the QR');
       try{ const txt=await readQrFromFile(f); const j=JSON.parse(txt); if(j.kk!==1) throw 0; await pairWith(j.addr, j.code, s.querySelector('#kkName').value.trim(), msg, j.alt); }
-      catch(e){ msg('QR దొరకలేదు. దగ్గరగా, నేరుగా ఫోటో తీయండి · No Krishi Khata QR found. Hold the phone closer and straight.'); } };
+      catch(e){ msg('QR దొరకలేదు. దగ్గరగా, నేరుగా ఫోటో తీయండి · No AgriKountr QR found. Hold the phone closer and straight.'); } };
     inp.click(); };
 }
 async function readQrFromFile(f){
@@ -391,7 +391,7 @@ async function desktopPanel(s){
       <button class="act blue" id="kkKeySave">సేవ్ · Save key</button></div>
     <div class="card" id="kkCloud"></div>
     <div class="card"><h3>బ్యాకప్ · Backup on this computer</h3><div class="note">Automatic copy every day in: <b>${esc(info.backupDir||'')}</b>${info.lastBackup?' · last: '+esc(info.lastBackup):''}</div>
-      <label class="f">Extra backup folder (Google Drive / pen drive)<input id="kkBk" value="${esc(info.extraBackupDir||'')}" placeholder="G:\\My Drive\\KrishiKhata"></label>
+      <label class="f">Extra backup folder (Google Drive / pen drive)<input id="kkBk" value="${esc(info.extraBackupDir||'')}" placeholder="G:\\My Drive\\AgriKountr"></label>
       <button class="act ghost" id="kkBkSave">సేవ్ · Save folder</button><button class="act ghost" id="kkBkNow">ఇప్పుడే బ్యాకప్ · Back up now</button></div>
     <button class="act ghost" id="kkX">మూసివేయండి · Close</button>`;
   let role='staff';
@@ -460,7 +460,7 @@ async function restoreView(box, st){
     return; }
   box.innerHTML=head+`<div class="note">Looking in Google Drive…</div>`;
   let list=[]; try{ list=(await api('/api/cloud/list',{timeout:60000})).list||[]; }catch(e){ box.innerHTML=head+`<div class="note" style="color:#b3261e">Could not read Google Drive. Check the internet.</div><button class="act ghost" id="kcBack">వెనక్కి · Back</button>`; box.querySelector('#kcBack').onclick=()=>cloudCard(box); return; }
-  if(!list.length){ box.innerHTML=head+`<div class="note">No Krishi Khata backups in this Google account${st.email?' ('+esc(st.email)+')':''}.</div><button class="act ghost" id="kcBack">వెనక్కి · Back</button>`; box.querySelector('#kcBack').onclick=()=>cloudCard(box); return; }
+  if(!list.length){ box.innerHTML=head+`<div class="note">No AgriKountr backups in this Google account${st.email?' ('+esc(st.email)+')':''}.</div><button class="act ghost" id="kcBack">వెనక్కి · Back</button>`; box.querySelector('#kcBack').onclick=()=>cloudCard(box); return; }
   let pick=list[0].id;
   box.innerHTML=head+`<div class="note">Pick a backup (newest first):</div>
     <div class="chips" style="flex-direction:column;align-items:stretch">${list.slice(0,12).map((x,i)=>`<button class="chip ${i===0?'on':''}" data-id="${esc(x.id)}" style="text-align:left">${esc(when(x.at))}${x.shop?' · '+esc(x.shop):''}${x.docs?' · '+x.docs+' records':''}</button>`).join('')}</div>

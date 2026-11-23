@@ -1,4 +1,4 @@
-/* Krishi Khata shop server.
+/* AgriKountr shop server.
    Runs inside the desktop app on the shop computer (or alone with `node server.js` for testing).
    - keeps the shop's data (the master copy)
    - phones on the same Wi-Fi pair with a 6-digit code and sync changes
@@ -43,7 +43,7 @@ function start(opts={}){
     const text = JSON.stringify(store);
     const f = path.join(BKD, `shop-${day}.json`);
     try{ writeAtomic(f, text); }catch(e){ log('backup failed', e.message); }
-    if(settings.extraBackupDir){ try{ fs.mkdirSync(settings.extraBackupDir,{recursive:true}); writeAtomic(path.join(settings.extraBackupDir, `krishi-khata-${day}.json`), text); }catch(e){ log('extra backup failed', e.message); } }
+    if(settings.extraBackupDir){ try{ fs.mkdirSync(settings.extraBackupDir,{recursive:true}); writeAtomic(path.join(settings.extraBackupDir, `agrikountr-${day}.json`), text); }catch(e){ log('extra backup failed', e.message); } }
     const all = fs.readdirSync(BKD).filter(x=>/^shop-\d{4}-\d{2}-\d{2}\.json$/.test(x)).sort();
     while(all.length>30){ try{ fs.unlinkSync(path.join(BKD, all.shift())); }catch(e){ break; } }
     settings.lastBackup = new Date().toISOString(); saveSettings();
@@ -130,13 +130,13 @@ function start(opts={}){
     try{
       if(p==='/oauth/google'){
         /* Google sends the browser back here after the dealer allows access */
-        const page=(ok,msg)=>{ res.writeHead(ok?200:400,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}); res.end(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>Krishi Khata</title><body style="font-family:sans-serif;max-width:520px;margin:60px auto;padding:20px;text-align:center;font-size:20px"><div style="font-size:64px">${ok?'✅':'⚠️'}</div><p><b>${ok?'గూగుల్ డ్రైవ్ కలిసింది · Google Drive connected':'కలవలేదు · Not connected'}</b></p><p>${msg}</p><p style="color:#666">${ok?'You can close this tab and go back to Krishi Khata.':'Go back to Krishi Khata and try again.'}</p></body>`); };
+        const page=(ok,msg)=>{ res.writeHead(ok?200:400,{'Content-Type':'text/html; charset=utf-8','Cache-Control':'no-store'}); res.end(`<!doctype html><meta name="viewport" content="width=device-width,initial-scale=1"><title>AgriKountr</title><body style="font-family:sans-serif;max-width:520px;margin:60px auto;padding:20px;text-align:center;font-size:20px"><div style="font-size:64px">${ok?'✅':'⚠️'}</div><p><b>${ok?'గూగుల్ డ్రైవ్ కలిసింది · Google Drive connected':'కలవలేదు · Not connected'}</b></p><p>${msg}</p><p style="color:#666">${ok?'You can close this tab and go back to AgriKountr.':'Go back to AgriKountr and try again.'}</p></body>`); };
         if(!isLocal(req)) return page(false, 'Open this on the shop computer.');
         try{ const st=await cloud.finishSignIn(url.searchParams); return page(true, st.email?`Backups will be saved in the Google Drive of <b>${st.email.replace(/[<>&]/g,'')}</b>.`:'Backups will be saved in your Google Drive.'); }
         catch(e){ return page(false, String(e.message||e).replace(/[<>&]/g,'')); }
       }
       if(p.startsWith('/api/')){
-        if(p==='/api/info') return send(res, 200, {app:'krishi-khata', version:1, local:isLocal(req), shopName:shopName()});
+        if(p==='/api/info') return send(res, 200, {app:'agrikountr', version:1, local:isLocal(req), shopName:shopName()});
         if(p==='/api/pair' && req.method==='POST'){
           const b=await body(req, 1e5);
           if(!pairCode || Date.now()>pairCode.exp || String(b.code)!==pairCode.code) return send(res, 403, {error:'bad_code'});
@@ -210,7 +210,7 @@ function start(opts={}){
         if(p==='/api/cloud/restore' && req.method==='POST'){ const b=await body(req,1e4); return send(res, 200, await cloud.restore(b.id, b.pin)); }
         if(p==='/api/cloud/disconnect' && req.method==='POST'){ return send(res, 200, await cloud.disconnect()); }
         if(p==='/api/backup-now' && req.method==='POST'){ backupNow(); return send(res, 200, {ok:true, at:settings.lastBackup}); }
-        if(p==='/api/export'){ return send(res, 200, store, {'Content-Disposition':'attachment; filename="krishi-khata-export.json"'}); }
+        if(p==='/api/export'){ return send(res, 200, store, {'Content-Disposition':'attachment; filename="agrikountr-export.json"'}); }
         return send(res, 404, {error:'not_found'});
       }
       /* static app files (the same screens phones use) */
@@ -224,7 +224,7 @@ function start(opts={}){
       log('error', p, e.message); send(res, e.status||500, {error:e.message||'error'});
     }
   });
-  server.listen(PORT, '0.0.0.0', ()=>log(`Krishi Khata shop server on port ${PORT}; phones connect to ${lanAddrs().join(', ')}; data in ${DATA}`));
+  server.listen(PORT, '0.0.0.0', ()=>log(`AgriKountr shop server on port ${PORT}; phones connect to ${lanAddrs().join(', ')}; data in ${DATA}`));
   const stop = ()=>{ try{ if(dirty) writeAtomic(DBF, JSON.stringify(store)); }catch(e){} server.close(); };
   return {server, port:PORT, stop, lanAddrs, dataDir:DATA, backupNow, cloud};
 }

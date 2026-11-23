@@ -12,7 +12,7 @@ const fs = require('fs');
 const path = require('path');
 
 const MAGIC = Buffer.from('KKB1');
-const FOLDER = 'Krishi Khata Backups';
+const FOLDER = 'AgriKountr Backups';
 const SCOPE = 'https://www.googleapis.com/auth/drive.file';
 const SCRYPT = {N:1<<17, r:8, p:1, maxmem:256*1024*1024};
 const DAY = 24*3600e3;
@@ -25,7 +25,7 @@ function lock(obj, key, salt){
   return Buffer.concat([MAGIC, salt, iv, body, c.getAuthTag()]);
 }
 function unlock(buf, pin, keyCache){
-  if(buf.length<4+16+12+16 || !buf.subarray(0,4).equals(MAGIC)) throw err('This is not a Krishi Khata backup.', 422);
+  if(buf.length<4+16+12+16 || !buf.subarray(0,4).equals(MAGIC)) throw err('This is not a AgriKountr backup.', 422);
   const salt=buf.subarray(4,20), iv=buf.subarray(20,32), tag=buf.subarray(buf.length-16), body=buf.subarray(32, buf.length-16);
   const key = keyCache && keyCache.salt.equals(salt) ? keyCache.key : deriveKey(pin, salt);
   try{ const d=crypto.createDecipheriv('aes-256-gcm', key, iv); d.setAuthTag(tag); const out=Buffer.concat([d.update(body), d.final()]); return {data:JSON.parse(zlib.gunzipSync(out).toString('utf8')), key, salt:Buffer.from(salt)}; }
@@ -85,9 +85,9 @@ function makeCloud(opts){
     const v=pending.verifier; pending=null;
     const t=await form(E.token, {code:q.get('code')||'', client_id:client.clientId, client_secret:client.clientSecret, redirect_uri:redirect(), grant_type:'authorization_code', code_verifier:v});
     if(!t.ok || !t.j.access_token) throw err('Google sign-in did not finish: '+(t.j.error_description||t.j.error||t.status), 502);
-    if(t.j.scope && !String(t.j.scope).includes('drive.file')) throw err('Please allow Krishi Khata to save files in your Google Drive, then try again.', 403);
+    if(t.j.scope && !String(t.j.scope).includes('drive.file')) throw err('Please allow AgriKountr to save files in your Google Drive, then try again.', 403);
     const c=C(); if(t.j.refresh_token) c.refresh=t.j.refresh_token;
-    if(!c.refresh) throw err('Google did not give a lasting sign-in. Remove Krishi Khata at myaccount.google.com → Security → Third-party access, then try again.', 502);
+    if(!c.refresh) throw err('Google did not give a lasting sign-in. Remove AgriKountr at myaccount.google.com → Security → Third-party access, then try again.', 502);
     access=t.j.access_token; accessExp=Date.now()+((t.j.expires_in||3600)-120)*1000;
     try{ const me=await drive('GET', `/about?fields=user(emailAddress,displayName)`); c.email=(me.user&&me.user.emailAddress)||''; }catch(e){}
     c.signInNeeded=false; c.lastError=''; c.folder=''; saveSettings(); log('google drive connected', c.email);
@@ -118,7 +118,7 @@ function makeCloud(opts){
     const c=C(); if(c.folder) return c.folder;
     const q=encodeURIComponent(`name='${FOLDER}' and mimeType='application/vnd.google-apps.folder' and trashed=false`);
     const l=await drive('GET', `/files?q=${q}&fields=files(id,name)&spaces=drive`);
-    const id=(l.files&&l.files[0]&&l.files[0].id) || (await drive('POST', '/files?fields=id', {name:FOLDER, mimeType:'application/vnd.google-apps.folder', description:'Locked backups of the Krishi Khata shop book. Opening them needs the shop backup PIN.'})).id;
+    const id=(l.files&&l.files[0]&&l.files[0].id) || (await drive('POST', '/files?fields=id', {name:FOLDER, mimeType:'application/vnd.google-apps.folder', description:'Locked backups of the AgriKountr shop book. Opening them needs the shop backup PIN.'})).id;
     c.folder=id; saveSettings(); return id;
   }
   async function list(){
@@ -137,7 +137,7 @@ function makeCloud(opts){
         const snap=opts.snapshot(); const at=new Date().toISOString();
         const buf=lock({v:1, at, ...snap}, k.key, k.salt);
         const slug=String(snap.shopName||'shop').toLowerCase().replace(/[^a-z0-9]+/g,'-').replace(/^-|-$/g,'').slice(0,30)||'shop';
-        const meta={name:`krishi-khata-${slug}-${at.slice(0,16).replace(/[:T]/g,'-')}.kkb`, mimeType:'application/octet-stream',
+        const meta={name:`agrikountr-${slug}-${at.slice(0,16).replace(/[:T]/g,'-')}.kkb`, mimeType:'application/octet-stream',
           appProperties:{kk:'1', at, shop:String(snap.shopName||'').slice(0,60), docs:String(Object.keys((snap.store&&snap.store.docs)||{}).length)}};
         const send=async()=>{
           meta.parents=[await folder()];

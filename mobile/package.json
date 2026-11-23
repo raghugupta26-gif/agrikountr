@@ -1,8 +1,8 @@
 {
-  "name": "krishi-khata-mobile",
+  "name": "agrikountr-mobile",
   "version": "1.0.0",
   "private": true,
-  "description": "Krishi Khata Android app (same screens as the desktop, works offline, syncs with the shop computer over Wi-Fi)",
+  "description": "AgriKountr Android app (same screens as the desktop, works offline, syncs with the shop computer over Wi-Fi)",
   "scripts": {
     "prepare-web": "node -e \"const fs=require('fs');fs.rmSync('www',{recursive:true,force:true});fs.cpSync('../web','www',{recursive:true})\"",
     "sync": "npm run prepare-web && npx cap sync android"

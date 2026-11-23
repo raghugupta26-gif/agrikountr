@@ -1,6 +1,6 @@
 {
-  "appId": "in.krishikhata.app",
-  "appName": "Krishi Khata",
+  "appId": "in.agrikountr.app",
+  "appName": "AgriKountr",
   "webDir": "www",
   "server": {
     "androidScheme": "http",

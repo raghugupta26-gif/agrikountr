@@ -1,4 +1,4 @@
-# Krishi Khata
+# AgriKountr
 
 Billing, stock, GST, udhaar and accounts for fertilizer, pesticide and seed shops.
 Bills enter themselves from a photo. Telugu first, works without internet.
@@ -15,20 +15,20 @@ Bills enter themselves from a photo. Telugu first, works without internet.
 
 ## Getting the apps (one-time setup, about 10 minutes)
 
-1. On github.com create an empty **private** repository named `krishi-khata`.
+1. On github.com create an empty **private** repository named `agrikountr`.
 2. Put this code in it (Claude does this once the repository exists).
 3. GitHub builds the apps automatically: open the repository → **Actions** → the latest **Build apps** run → **Artifacts**:
-   - `KrishiKhata-Windows-Setup` → unzip → run `Krishi Khata Setup.exe` on the shop computer
-   - `KrishiKhata-Android-APK` → unzip → copy `KrishiKhata.apk` to the phone → open it → allow "install unknown apps"
+   - `AgriKountr-Windows-Setup` → unzip → run `AgriKountr Setup.exe` on the shop computer
+   - `AgriKountr-Android-APK` → unzip → copy `AgriKountr.apk` to the phone → open it → allow "install unknown apps"
 
 ## First day in the shop
 
-1. Install and open Krishi Khata on the shop computer. If Windows asks about the firewall, tap **Allow** (needed for phones).
+1. Install and open AgriKountr on the shop computer. If Windows asks about the firewall, tap **Allow** (needed for phones).
 2. Click the badge at the top right → **AI bill reader** → paste the AI key (from console.anthropic.com) → **Save key**.
 3. Open **షాప్ వివరాలు · Shop details**: shop name, address, GSTIN, state, invoice prefix, godown names, UPI ID.
 4. Open **లైసెన్సులు · Licences**: photograph each licence.
 5. Connect each phone: on the computer click the badge → choose **Staff** or **Owner** → a QR and code appear.
-   On the phone open Krishi Khata → **Photograph the QR**. Phone and computer must be on the same Wi-Fi
+   On the phone open AgriKountr → **Photograph the QR**. Phone and computer must be on the same Wi-Fi
    (or the computer joined to the phone's hotspot).
 6. Photograph the last few company bills and the old khata pages so the shop starts with real stock and dues.
 
@@ -69,7 +69,7 @@ Every bill photo goes through:
 1. Choose a backup PIN of 6 to 12 digits. Write it on paper and keep it with your licences. Without the PIN nobody can open the backup, not even us.
 2. Tap **Sign in with Google**, press **Allow** in the browser, and come back.
 
-After that, the computer saves a locked copy to the shop's own Google Drive every day. It is kept in the folder "Krishi Khata Backups": the last 14 copies, plus one per month for a year. The home screen shows **✓ Data safe**. If it shows a red warning, the backup has stopped.
+After that, the computer saves a locked copy to the shop's own Google Drive every day. It is kept in the folder "AgriKountr Backups": the last 14 copies, plus one per month for a year. The home screen shows **✓ Data safe**. If it shows a red warning, the backup has stopped.
 
 **New computer:** install the app, tap **New computer? Restore old data**, sign in with the same Google account, pick the backup, and type the PIN. Phones keep working once they are reconnected.
 
@@ -79,7 +79,7 @@ The backup leaves out these secrets: the AI key and the e-way bill password. Typ
 1. Create a project, then enable the **Google Drive API**.
 2. Set up the OAuth consent screen:
    - User type **External**.
-   - App name "Krishi Khata", logo, support email, and a privacy policy web page.
+   - App name "AgriKountr", logo, support email, and a privacy policy web page.
    - Scope: only `.../auth/drive.file`, which Google rates non-sensitive and needs only basic verification.
 3. Create credentials: OAuth client ID → **Desktop app**.
 4. Press **Publish app** to move it to "In production". In "Testing", Google ends every sign-in after 7 days.

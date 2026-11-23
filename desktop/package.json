@@ -1,10 +1,10 @@
 {
-  "name": "krishi-khata-desktop",
-  "productName": "Krishi Khata",
+  "name": "agrikountr-desktop",
+  "productName": "AgriKountr",
   "version": "1.0.0",
-  "description": "Krishi Khata shop computer app: billing, stock, GST and the server phones sync with over Wi-Fi",
+  "description": "AgriKountr shop computer app: billing, stock, GST and the server phones sync with over Wi-Fi",
   "main": "main.js",
-  "author": "Krishi Khata",
+  "author": "AgriKountr",
   "license": "UNLICENSED",
   "private": true,
   "scripts": {
@@ -21,12 +21,12 @@
     "electron-builder": "^26.0.12"
   },
   "build": {
-    "appId": "in.krishikhata.desktop",
-    "productName": "Krishi Khata",
+    "appId": "in.agrikountr.desktop",
+    "productName": "AgriKountr",
     "files": ["main.js", "server.js", "ewb.js", "cloud.js", "google-oauth*.json", "web/**", "build/icon.png", "package.json"],
     "directories": { "output": "dist", "buildResources": "build" },
     "asarUnpack": ["node_modules/tesseract.js/**", "node_modules/tesseract.js-core/**", "node_modules/@tesseract.js-data/**"],
     "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "build/icon.ico" },
-    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "Krishi Khata" }
+    "nsis": { "oneClick": false, "perMachine": false, "allowToChangeInstallationDirectory": true, "createDesktopShortcut": true, "shortcutName": "AgriKountr" }
   }
 }
