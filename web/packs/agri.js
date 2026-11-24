@@ -14,8 +14,39 @@ const PACK = {
 const CATS = {fertilizer:'ఎరువు · Fertilizer', pesticide:'పురుగు మందు · Pesticide', seed:'విత్తనం · Seed', other:'ఇతర · Other'};
 const LICTYPES = {fertilizer:'ఎరువుల లైసెన్స్ · Fertilizer licence', pesticide:'పురుగు మందుల లైసెన్స్ · Pesticide (Insecticide) licence', seed:'విత్తన లైసెన్స్ · Seed licence', gst:'GST registration', other:'ఇతర · Other (trade licence etc.)'};
 
-/* ----- Crops for the crop doctor ----- */
-const CROPS = [['paddy','వరి · Paddy'],['cotton','పత్తి · Cotton'],['maize','మొక్కజొన్న · Maize'],['chilli','మిరప · Chilli'],['redgram','కంది · Red gram'],['groundnut','వేరుశనగ · Groundnut'],['vegetables','కూరగాయలు · Vegetables'],['other','ఇతర · Other']];
+/* ----- Crops (crop doctor, main crop) ----- */
+const CROPS = [['paddy','వరి · Paddy'],['cotton','పత్తి · Cotton'],['maize','మొక్కజొన్న · Maize'],['chilli','మిరప · Chilli'],['turmeric','పసుపు · Turmeric'],['redgram','కంది · Red gram'],['groundnut','వేరుశనగ · Groundnut'],['soybean','సోయాబీన్ · Soybean'],['vegetables','కూరగాయలు · Vegetables'],['other','ఇతర · Other']];
+
+/* ----- Main crop of the shop's area: picked on first run. It sets the home picture, the colour,
+   the season tip, and which products come first on the sell screen. Every product stays sellable.
+   img: big picture (photo or drawing), tile: small round picture. match: words in a product's
+   name / content / group that make it useful for this crop (earlier word = shown earlier). ----- */
+const CROPTHEME = [
+ {id:'paddy', te:'వరి', en:'Paddy', img:'img/crops/paddy.jpg', tile:'img/crops/paddy-t.jpg', photo:true, sky:'#c9ecef', accent:'#2e9b4f', dark:'#1d6b35',
+  tipTe:'దోమపోటు, కాండం తొలుచు పురుగు కాలం. ఆ మందులు స్టాక్ ఉంచండి.', tipEn:'Brown planthopper and stem borer season: keep their sprays in stock.',
+  match:['paddy','rice','pymetrozine','dinotefuran','triflumezopyrim','buprofezin','cartap','chlorantraniliprole 0.4','fipronil 0.3','tricyclazole','isoprothiolane','validamycin','hexaconazole','thifluzamide','propiconazole','chlorantraniliprole','imidacloprid','butachlor','pretilachlor','bispyribac','pyrazosulfuron','zinc','urea','dap','potash','muriate']},
+ {id:'cotton', te:'పత్తి', en:'Cotton', img:'img/crops/cotton.webp', tile:'img/crops/cotton-t.jpg', sky:'#bfe3f5', accent:'#2f6fb5', dark:'#1d4f8a',
+  tipTe:'గులాబీ రంగు పురుగు కాలం. ఫెరమోన్ ట్రాప్స్ స్టాక్ ఉంచండి.', tipEn:'Pink bollworm season: keep pheromone traps in stock.',
+  match:['cotton','bg-ii','pheromone','flonicamid','diafenthiuron','acephate','imidacloprid','thiamethoxam','profenofos','pyriproxyfen','spinetoram','emamectin','mepiquat','pyrithiobac','quizalofop','pendimethalin','magnesium','boron','19-19-19','13-0-45']},
+ {id:'chilli', te:'మిరప', en:'Chilli', img:'img/crops/chilli.webp', tile:'img/crops/chilli-t.jpg', sky:'#f9d7b4', accent:'#c62828', dark:'#8e1b1b',
+  tipTe:'తామర పురుగుల కాలం. జిగురు అట్టలు, మందులు సిద్ధంగా ఉంచండి.', tipEn:'Thrips season: keep sticky traps and sprays ready.',
+  match:['chilli','mirchi','fipronil','spinosad','spinetoram','tolfenpyrad','chlorfenapyr','cyantraniliprole','broflanilide','emamectin','azoxystrobin','tebuconazole','propineb','mancozeb','copper','sticky','calcium nitrate','19-19-19','13-0-45','neem']},
+ {id:'maize', te:'మొక్కజొన్న', en:'Maize', img:'img/crops/maize.webp', tile:'img/crops/maize-t.jpg', sky:'#d8ecf0', accent:'#b07a00', dark:'#7a5600',
+  tipTe:'కత్తెర పురుగు చూడండి. సుడుల్లో కొట్టే మందులు అడుగుతారు.', tipEn:'Fall armyworm: farmers will ask for whorl sprays.',
+  match:['maize','corn','emamectin','chlorantraniliprole','spinetoram','atrazine','tembotrione','topramezone','zinc','urea','dap','potash']},
+ {id:'turmeric', te:'పసుపు', en:'Turmeric', img:'img/crops/turmeric.webp', tile:'img/crops/turmeric-t.jpg', sky:'#ffe6a8', accent:'#c97700', dark:'#8a5200',
+  tipTe:'దుంప కుళ్లు నివారణ మందులు ఎక్కువ అడుగుతారు.', tipEn:'Rhizome rot: soil drench fungicides in demand.',
+  match:['turmeric','metalaxyl','carbendazim','copper','mancozeb','trichoderma','propiconazole','hexaconazole','dimethoate','gypsum','potash','neem']},
+ {id:'redgram', te:'కంది', en:'Red gram', img:'img/crops/redgram.webp', tile:'img/crops/redgram-t.jpg', sky:'#dbe8ea', accent:'#9a6a00', dark:'#6e4d00',
+  tipTe:'కాయ తొలుచు పురుగు. NPV, ఫెరమోన్ ట్రాప్స్ అడుగుతారు.', tipEn:'Pod borer: NPV and pheromone traps in demand.',
+  match:['red gram','redgram','pulses','npv','pheromone','chlorantraniliprole','flubendiamide','indoxacarb','novaluron','emamectin','spinosad','profenofos','imazethapyr','pendimethalin','single super','ssp','sulphur','dap']},
+ {id:'groundnut', te:'వేరుశనగ', en:'Groundnut', img:'img/crops/groundnut.webp', tile:'img/crops/groundnut-t.jpg', sky:'#dfe9e6', accent:'#9a5b2a', dark:'#6b3c17',
+  tipTe:'టిక్కా ఆకుమచ్చ తెగులు. పూత దశలో జిప్సం అడుగుతారు.', tipEn:'Tikka leaf spot; gypsum at flowering.',
+  match:['groundnut','gypsum','single super','ssp','sulphur','chlorothalonil','tebuconazole','hexaconazole','carbendazim','mancozeb','imidacloprid','thiamethoxam','imazethapyr','quizalofop','rhizobium','trichoderma','boron']},
+ {id:'soybean', te:'సోయాబీన్', en:'Soybean', img:'img/crops/soybean.webp', tile:'img/crops/soybean-t.jpg', sky:'#d6ebe2', accent:'#5f7a12', dark:'#3f520a',
+  tipTe:'పల్లాకు తెగులు. తెల్లదోమ నివారణ మందులు అడుగుతారు.', tipEn:'Yellow mosaic: whitefly control in demand.',
+  match:['soybean','soya','imazethapyr','quizalofop','chlorimuron','thiamethoxam','chlorantraniliprole','indoxacarb','profenofos','rhizobium','psb','single super','sulphur','tebuconazole','dap']}
+];
 
 /* ----- Training lessons for dealers ----- */
 const LESSONS = [

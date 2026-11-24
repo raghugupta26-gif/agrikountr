@@ -168,6 +168,76 @@ table.gt td.r{text-align:right}
   .sheet{max-width:640px;border-radius:22px;margin-bottom:5vh}
   .overlay{align-items:center}
 }
+/* ----- main crop: picker, starter, home picture ----- */
+header.top{background:var(--brand,var(--field))}
+.intro{position:fixed;inset:0;z-index:40;background:#0f1a12;color:#fff;overflow:auto;display:flex;justify-content:center}
+.intro .in{width:100%;max-width:560px;min-height:100%;display:flex;flex-direction:column}
+.ihero{position:relative;height:36vh;min-height:220px;max-height:340px;flex:none;overflow:hidden;background:var(--csky)}
+.ihero img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 75%}
+.ihero:after{content:"";position:absolute;inset:0;background:linear-gradient(180deg,rgba(15,26,18,.1) 0%,rgba(15,26,18,0) 40%,rgba(15,26,18,.85) 92%,#0f1a12 100%)}
+.ihero .tx{position:absolute;left:20px;right:20px;bottom:14px;z-index:1}
+.ihero .k{font-size:13px;font-weight:800;letter-spacing:.1em;color:#f2b705}
+.ihero h2{margin:2px 0 0;font-size:29px;font-weight:800;line-height:1.1}
+.ihero p{margin:2px 0 0;font-size:15px;color:#cfd8cb}
+.cgrid{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 8px;padding:14px 14px 0}
+.ctile{display:flex;flex-direction:column;align-items:center;gap:5px;color:#fff;padding:2px 0}
+.ctile .ring{width:72px;height:72px;border-radius:50%;overflow:hidden;background:var(--csky);opacity:.7;display:block}
+.ctile .ring img{width:100%;height:100%;object-fit:cover;display:block}
+.ctile b{font-size:15px;line-height:1.05}.ctile span.e{font-size:11.5px;color:#a9b6ab;line-height:1}
+.ctile[aria-checked=true] .ring{opacity:1;box-shadow:0 0 0 3px #0f1a12,0 0 0 6px var(--ac)}
+.inote{margin:16px 14px 0;background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.12);border-radius:16px;padding:10px 12px;font-size:14.5px;line-height:1.3;color:#dfe6dc}
+.inote b{color:#fff}
+.igo{margin:auto 14px 0;padding:16px 0 18px;display:flex;flex-direction:column;gap:8px}
+.igo .act{background:var(--ac);color:#fff;min-height:64px;font-size:21px}
+.igo .note{color:#8f9c91;text-align:center}
+.starter{position:fixed;inset:0;z-index:45;background:radial-gradient(ellipse at 50% 60%,#1d2f1f 0%,#0b140d 70%);color:#fff;overflow:hidden;cursor:pointer}
+.starter .ph{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 70%;transform-origin:65% 75%;opacity:0;animation:stPhoto 6s ease-in-out forwards;background:var(--csky)}
+.starter .sh{position:absolute;inset:0;background:linear-gradient(180deg,rgba(8,16,10,.1) 0%,rgba(8,16,10,0) 30%,rgba(8,16,10,.6) 62%,rgba(8,16,10,.93) 100%);opacity:0;animation:stShade 6s ease-in-out forwards}
+.starter svg.sp{position:absolute;left:50%;top:44%;width:240px;height:240px;margin:-120px 0 0 -120px}
+.st-soil{transform-origin:120px 190px;animation:stSoil 6s ease-out forwards}
+.st-seed{animation:stSeed 6s cubic-bezier(.5,0,.3,1) forwards}
+.st-sprout{stroke-dasharray:120;stroke-dashoffset:120;animation:stSprout 6s ease-out forwards}
+.st-l1{transform-box:fill-box;transform-origin:100% 100%;animation:stL1 6s ease-out forwards}
+.st-l2{transform-box:fill-box;transform-origin:0 100%;animation:stL2 6s ease-out forwards}
+.st-ring{transform-box:fill-box;transform-origin:50% 50%;animation:stRing 6s ease-out forwards}
+.starter .tx{position:absolute;left:24px;right:24px;bottom:120px;text-align:center}
+.starter .chip2{display:inline-flex;align-items:center;gap:8px;background:var(--ac);border-radius:999px;padding:6px 14px;font-size:15px;font-weight:800;opacity:0;animation:stUp 6s cubic-bezier(.2,.8,.2,1) forwards;animation-name:stCrop}
+.starter .chip2 svg{width:16px;height:16px}
+.starter .logo{margin:18px auto 0;width:76px;height:76px;border-radius:24px;background:linear-gradient(145deg,var(--ac),var(--dk));display:grid;place-items:center;box-shadow:0 12px 30px rgba(0,0,0,.35);opacity:0;animation:stLogo 6s cubic-bezier(.2,.8,.2,1) forwards}
+.starter .logo svg{width:44px;height:44px}
+.starter .nm{opacity:0;animation:stName 6s cubic-bezier(.2,.8,.2,1) forwards}
+.starter .nm b{display:block;margin-top:12px;font-size:40px;line-height:1}
+.starter .nm small{display:block;font-size:15px;font-weight:700;letter-spacing:.22em;color:#bfe8a8;margin-top:4px}
+.starter .nm span{display:block;font-size:19px;font-weight:700;margin-top:14px}
+.starter .skip{position:absolute;left:16px;right:16px;bottom:30px;font-size:13px;color:#d5e2d2;text-align:center}
+.starter .bar{height:4px;border-radius:2px;background:rgba(255,255,255,.2);overflow:hidden;margin-bottom:10px}
+.starter .bar i{display:block;height:100%;background:#bfe8a8;transform-origin:0 50%;animation:stBar 6s linear forwards}
+@keyframes stSeed{0%{transform:translateY(-260px);opacity:0}5%{opacity:1}16%{transform:translateY(0)}19%{transform:translateY(-10px)}22%{transform:translateY(0)}40%{opacity:1}48%,100%{opacity:0;transform:translateY(0)}}
+@keyframes stSoil{0%,14%{opacity:0;transform:scaleX(.3)}24%{opacity:1;transform:scaleX(1)}44%{opacity:1}52%,100%{opacity:0}}
+@keyframes stSprout{0%,22%{stroke-dashoffset:120;opacity:1}40%{stroke-dashoffset:0}46%{opacity:1}52%,100%{stroke-dashoffset:0;opacity:0}}
+@keyframes stL1{0%,28%{transform:scale(0) rotate(-30deg);opacity:0}40%{transform:scale(1) rotate(0);opacity:1}46%{opacity:1}52%,100%{opacity:0;transform:scale(1)}}
+@keyframes stL2{0%,32%{transform:scale(0) rotate(30deg);opacity:0}43%{transform:scale(1) rotate(0);opacity:1}46%{opacity:1}52%,100%{opacity:0;transform:scale(1)}}
+@keyframes stRing{0%,40%{transform:scale(.2);opacity:0}44%{opacity:.9}58%,100%{transform:scale(9);opacity:0}}
+@keyframes stPhoto{0%,42%{opacity:0;transform:scale(1.35)}58%{opacity:1}100%{opacity:1;transform:scale(1.04)}}
+@keyframes stShade{0%,46%{opacity:0}64%,100%{opacity:1}}
+@keyframes stCrop{0%,58%{opacity:0;transform:translateY(16px)}68%,100%{opacity:1;transform:none}}
+@keyframes stLogo{0%,64%{opacity:0;transform:scale(.6)}74%,100%{opacity:1;transform:none}}
+@keyframes stName{0%,72%{opacity:0;transform:translateY(18px)}82%,100%{opacity:1;transform:none}}
+@keyframes stBar{0%{transform:scaleX(0)}100%{transform:scaleX(1)}}
+@media (prefers-reduced-motion:reduce){.starter *{animation-duration:.01s!important;animation-delay:0s!important}}
+.chero{position:relative;border-radius:22px;overflow:hidden;min-height:260px;background:var(--csky);color:#fff;display:flex;flex-direction:column;justify-content:flex-end;box-shadow:0 6px 18px rgba(23,37,27,.12)}
+.chero>img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;object-position:50% 70%}
+.chero:before{content:"";position:absolute;inset:0;z-index:1;background:linear-gradient(180deg,rgba(8,16,10,.25) 0%,rgba(8,16,10,0) 35%,rgba(8,16,10,.78) 100%)}
+.chero .tx{position:relative;z-index:2;padding:14px 16px 14px}
+.chero .top2{position:absolute;z-index:2;top:12px;left:12px;right:12px;display:flex;justify-content:space-between;gap:8px}
+.gl{background:rgba(12,22,14,.42);-webkit-backdrop-filter:blur(10px);backdrop-filter:blur(10px);border:1px solid rgba(255,255,255,.22);border-radius:999px;padding:5px 12px;font-size:14px;font-weight:700;color:#fff}
+.chero .gr{font-size:16px;font-weight:700;text-shadow:0 1px 6px rgba(0,0,0,.6)}
+.chero .tip{margin-top:6px;border-radius:14px;padding:7px 12px;display:flex;gap:10px;align-items:center;font-size:13.5px;font-weight:500;line-height:1.25;text-align:left;width:100%;color:#fff}
+.chero .tip svg{width:22px;height:22px;flex:none;color:#f2b705}
+.sect.crop{color:var(--brand,var(--field))}
+.prod.forcrop{border-color:var(--ac,var(--line))}
+.prod.forcrop .crb{font-size:12px;font-weight:800;color:var(--brand,var(--field))}
+@media (min-width:1000px){.chero{min-height:320px}.cgrid{gap:16px 12px}}
 input[type=file]{display:none}
 .thumb{max-width:100%;max-height:180px;border-radius:12px;object-fit:contain;background:#fff;align-self:center}
 </style>
@@ -277,7 +347,7 @@ async function saveShop(){
 }
 
 async function connect(){
-  if(!(window.claude && claude.use)) { S.dataNote='Data is kept on this phone only.'; render(); return; }
+  if(!(window.claude && claude.use)) { S.dataNote='Data is kept on this phone only.'; S.ready=true; render(); return; }
   try{
     const [db, user] = await Promise.all([claude.use('db'), claude.use('user')]);
     USER=user; ME = user ? await user.id() : null;
@@ -285,12 +355,12 @@ async function connect(){
     if(db){
       DB=db; ROOT=db.doc('shops/main'); mode='cloud';
       let fresh=false; const timer=setTimeout(()=>{ if(!fresh){ S.dataNote='Data can\'t be reached yet. Check internet.'; renderSoft(); } },10000);
-      ROOT.onSnapshot(s=>{ if(s.exists){ Object.assign(S.shop, s.data()); } if(!s.metadata.fromCache){fresh=true;clearTimeout(timer);S.dataNote='';} renderSoft(); }, ()=>{});
+      ROOT.onSnapshot(s=>{ if(s.exists){ Object.assign(S.shop, s.data()); } if(!s.metadata.fromCache){fresh=true;clearTimeout(timer);S.dataNote='';S.ready=true;} renderSoft(); maybeIntro(); }, ()=>{});
       for(const k of KINDS){
         ROOT.collection(k).onSnapshot(q=>{ S[k]=q.docs.map(d=>{ const o={...d.data(), id:d.id}; return k==='products'?fixProd(o):o; }); if(k==='scans') onScansChanged(); renderSoft(); }, ()=>{});
       }
-    } else { S.dataNote=''; }
-  }catch(e){ S.dataNote='Data is kept on this phone only.'; }
+    } else { S.dataNote=''; S.ready=true; }
+  }catch(e){ S.dataNote='Data is kept on this phone only.'; S.ready=true; }
   try{ AI = await claude.use('sample'); }catch(e){ AI=null; }
   try{ DICT = await claude.use('dictation'); }catch(e){ DICT=null; }
   try{ TTS = await claude.use('tts'); }catch(e){ TTS=null; }
@@ -503,7 +573,7 @@ function render(){
   const m = $('#main');
   setTimeout(()=>{ if(S.view==='bill') drawQr(); },0);
   m.innerHTML = ({home:vHome, sell:vSell, in:vIn, due:vDue, stock:vStock, places:vPlaces, lic:vLic, bills:vBills, bill:vBill, settings:vSettings, doctor:vDoctor, learn:vLearn, info:vInfo, catalog:vCatalog, gst:vGst, acc:vAcc, day:vDay, cashbook:vCashbook, outst:vOutst, ledger:vLedger, pl:vPL, stocksum:vStocksum, position:vPosition, scans:vScans}[S.view]||vHome)();
-  bind(); paintLink();
+  bind(); paintLink(); applyTheme(); maybeIntro();
   if(ROOM){ try{ ROOM.presence({view:S.view}).catch(()=>{}); }catch(e){} }
 }
 
@@ -517,6 +587,7 @@ function vHome(){
   const lp=licProblems();
   return `
   ${S.dataNote?`<div class="note">${esc(S.dataNote)}</div>`:''}
+  ${cropHero()}
   ${scanBanner()}
   ${cloudBanner(empty)}
   ${lp.map(x=>`<button class="alertbar ${x.cls==='warn'?'warn':''}" data-go="lic">${I.warn}<span>${esc(x.t)}</span></button>`).join('')}
@@ -548,6 +619,99 @@ function vHome(){
   </div>`;
 }
 
+/* ----- MAIN CROP: picker on first run, a short starter animation, home picture, crop-first selling ----- */
+const cropTheme = id => CROPTHEME.find(c=>c.id===(id===undefined?S.shop.crop:id)) || null;
+const LEAF = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 21V9"/><path d="M12 13c-4 0-6-3-6-7 4 0 6 3 6 7z"/><path d="M12 11c4 0 6-3 6-7-4 0-6 3-6 7z"/></svg>';
+function cropRank(p, th){
+  if(!th) return -1;
+  const t=String((p.name||'')+' '+(p.content||'')+' '+(p.sub||'')+' '+(p.company||'')).toLowerCase();
+  for(let i=0;i<th.match.length;i++) if(t.includes(th.match[i])) return i;
+  return -1;
+}
+function cropSort(list, th){
+  if(!th) return list;
+  return list.map(p=>[cropRank(p,th),p]).sort((a,b)=>(a[0]<0)-(b[0]<0) || a[0]-b[0] || String(a[1].name).localeCompare(String(b[1].name))).map(x=>x[1]);
+}
+function applyTheme(){
+  const th=cropTheme(), r=document.documentElement.style;
+  if(th){ r.setProperty('--brand', th.dark); r.setProperty('--ac', th.accent); r.setProperty('--csky', th.sky); }
+  else { r.removeProperty('--brand'); r.removeProperty('--ac'); r.removeProperty('--csky'); }
+  const m=document.querySelector('meta[name=theme-color]'); if(m) m.content = th ? th.dark : '#1d5c3a';
+}
+function greet(){ const h=new Date().getHours(); return h<12?'శుభోదయం · Good morning':h<17?'శుభ మధ్యాహ్నం · Good afternoon':'శుభ సాయంత్రం · Good evening'; }
+function cropHero(){
+  const th=cropTheme(); if(!th) return '';
+  return `<div class="chero" style="--csky:${th.sky}">
+    <img src="${th.img}" alt="${esc(th.en)} field">
+    <div class="top2"><span class="gl">${esc(th.te)} · ${esc(th.en)}</span>${ISOWNER?`<button class="gl" data-a="cropPick" aria-label="Change main crop">మార్చు · Change</button>`:''}</div>
+    <div class="tx"><div class="gr">${greet()}</div>
+      <button class="tip gl" data-a="cropTip" style="border-radius:14px">${I.warn}<span><b>${esc(th.tipTe)}</b><br>${esc(th.tipEn)}</span></button></div>
+  </div>`;
+}
+let INTRO = null;   /* {pick, first} while the picker is open */
+function maybeIntro(){
+  if(INTRO || !S.ready || S.shop.crop || !ISOWNER) return;
+  cropPicker(true);
+}
+function cropPicker(first){
+  INTRO = {pick: S.shop.crop || 'paddy', first: !!first};
+  let el=document.getElementById('intro'); if(!el){ el=document.createElement('div'); el.id='intro'; document.body.appendChild(el); }
+  el.className='intro'; el.setAttribute('role','dialog'); el.setAttribute('aria-modal','true'); el.setAttribute('aria-label','Pick your main crop');
+  el.onclick = e => {
+    const b=e.target.closest('[data-c],[data-x]'); if(!b) return;
+    if(b.dataset.c){ INTRO.pick=b.dataset.c; paintPicker(); say(cropTheme(INTRO.pick).te); }
+    else if(b.dataset.x==='go') chooseCrop(INTRO.pick);
+    else if(b.dataset.x==='close') closeIntro();
+  };
+  paintPicker();
+}
+function paintPicker(){
+  const el=document.getElementById('intro'); if(!el||!INTRO) return;
+  const th=cropTheme(INTRO.pick);
+  el.style.setProperty('--ac', th.accent); el.style.setProperty('--csky', th.sky);
+  el.innerHTML = `<div class="in">
+    <div class="ihero"><img src="${th.img}" alt="${esc(th.en)} field">
+      ${INTRO.first?'':`<button class="iconbtn" data-x="close" aria-label="Close" style="position:absolute;top:12px;right:12px;z-index:2;background:rgba(0,0,0,.4)">✕</button>`}
+      <div class="tx"><div class="k">${esc(PACK.brandTe)} · ${INTRO.first?'మొదటి అడుగు':'ముఖ్య పంట'}</div>
+      <h2>మీ ప్రాంతంలో ముఖ్యమైన పంట ఏది?</h2><p>Which is the main crop around your shop?</p></div></div>
+    <div class="cgrid" role="radiogroup" aria-label="Main crop">${CROPTHEME.map(c=>`<button class="ctile" role="radio" aria-checked="${c.id===INTRO.pick}" data-c="${c.id}" style="--ac:${c.accent};--csky:${c.sky}"><span class="ring"><img src="${c.tile}" alt=""></span><b>${esc(c.te)}</b><span class="e">${esc(c.en)}</span></button>`).join('')}</div>
+    <div class="inote">${I.box.replace('<svg','<svg width="24" height="24" style="vertical-align:-6px;margin-right:6px;color:#f2b705"')}<b>అన్ని ఉత్పత్తులూ అమ్మవచ్చు.</b> The crop only changes the look, the tips and which products come first. You can still sell every product in your shop.</div>
+    <div class="igo"><button class="act" data-x="go">${esc(th.te)} తో మొదలు పెట్టండి →</button><div class="note">Change it any time in Shop details.</div></div>
+  </div>`;
+}
+function closeIntro(){ INTRO=null; const el=document.getElementById('intro'); if(el) el.remove(); }
+async function chooseCrop(id){
+  closeIntro();
+  S.shop.crop=id; applyTheme(); await saveShop();
+  try{ localStorage.setItem('ak_starter', id); }catch(e){}
+  starter(cropTheme(id));
+}
+function starter(th){
+  if(!th) return; render();
+  const el=document.createElement('div'); el.className='starter'; el.id='starter'; el.setAttribute('role','presentation');
+  el.style.setProperty('--ac', th.accent); el.style.setProperty('--dk', th.dark); el.style.setProperty('--csky', th.sky);
+  el.innerHTML = `<img class="ph" src="${th.img}" alt="">
+    <div class="sh"></div>
+    <svg class="sp" viewBox="0 0 240 240" aria-hidden="true">
+      <ellipse class="st-soil" cx="120" cy="190" rx="110" ry="10" fill="#6b4a2c"/>
+      <ellipse class="st-seed" cx="120" cy="182" rx="9" ry="12" fill="#d8b35c"/>
+      <path class="st-sprout" d="M120 186 C120 150 117 130 121 100" fill="none" stroke="#7ccf6a" stroke-width="5" stroke-linecap="round"/>
+      <path class="st-l1" d="M119 124 C95 120 81 104 77 82 C101 84 115 100 119 124 Z" fill="#62b956"/>
+      <path class="st-l2" d="M122 112 C145 108 161 92 165 70 C141 72 126 88 122 112 Z" fill="#8bd77a"/>
+      <circle class="st-ring" cx="120" cy="100" r="40" fill="none" stroke="#bfe8a8" stroke-width="2"/>
+    </svg>
+    <div class="tx">
+      <div class="chip2">${I.check} ${esc(th.te)} ప్రాంతం · ${esc(th.en)} belt</div>
+      <div class="logo">${LEAF}</div>
+      <div class="nm"><b>${esc(PACK.brandTe)}</b><small>${esc(PACK.brand.toUpperCase())}</small>${S.shop.name?`<span>${esc(S.shop.name)}</span>`:''}</div>
+    </div>
+    <div class="skip"><div class="bar"><i></i></div>నొక్కితే దాటవేయండి · Tap to skip</div>`;
+  document.body.appendChild(el);
+  const done=()=>{ clearTimeout(t); el.remove(); if(!S.shop.name) go('settings'); };
+  const t=setTimeout(done, 6300);
+  el.onclick=done;
+}
+
 /* ----- SELL ----- */
 function cart(){ if(!S.cart) S.cart={items:[], farmer:'', village:'', phone:'', b2b:false, gstin:'', addr:'', place:'', pin:'', ship:null}; return S.cart; }
 function cartTotal(){ return cart().items.reduce((a,i)=>a+i.qty*i.rate,0); }
@@ -571,7 +735,10 @@ function bestBatch(name){
 }
 function vSell(){
   const c=cart(); const q=norm(S.q);
-  const prods=S.products.filter(p=>p.qty>0 && (!q || norm(p.name).includes(q)));
+  const th=cropTheme();
+  const prods=cropSort(S.products.filter(p=>p.qty>0 && (!q || norm(p.name).includes(q))), th);
+  const forCrop=th&&!q ? prods.filter(p=>cropRank(p,th)>=0) : [];
+  const others=forCrop.length ? prods.filter(p=>cropRank(p,th)<0) : prods;
   const tot=cartTotal();
   const known=S.parties.filter(p=>!isSupplier(p)).sort((a,b)=>(b.last||'').localeCompare(a.last||'')).slice(0,6);
   return `
@@ -612,7 +779,8 @@ function vSell(){
   </div>`:''}
   <div class="sect">సరుకు నొక్కండి · Tap to add</div>
   <label class="f"><input id="search" placeholder="వెతకండి · Search" value="${esc(S.q)}"></label>
-  ${prods.length?`<div class="grid">${prods.map(p=>prodCard(p)).join('')}</div>`:`<div class="empty">${q?'మీ స్టాక్‌లో లేదు · Not in your stock':'స్టాక్ లేదు. No stock yet. Use “Stock in” first.'}</div>`}
+  ${forCrop.length?`<div class="sect crop">${esc(th.te)} కోసం ముందుగా · For ${esc(th.en)} first</div><div class="grid">${forCrop.map(p=>prodCard(p,'add',null,true)).join('')}</div>${others.length?`<div class="sect">మిగతా అన్ని ఉత్పత్తులు · All other products</div>`:''}`:''}
+  ${prods.length?(others.length?`<div class="grid">${others.map(p=>prodCard(p)).join('')}</div>`:''):`<div class="empty">${q?'మీ స్టాక్‌లో లేదు · Not in your stock':'స్టాక్ లేదు. No stock yet. Use “Stock in” first.'}</div>`}
   ${catMore(S.q)}`;
 }
 function catMore(q){
@@ -620,9 +788,9 @@ function catMore(q){
   const r=catSearch(q,12).filter(c=>!have.has(norm(c.name)));
   return r.length?`<div class="sect">జాబితాలో ఉన్నవి (స్టాక్ లేదు) · From product list, not in stock</div><div class="grid">${r.map(catCard).join('')}</div>`:'';
 }
-function prodCard(p, act='add', place=null){
+function prodCard(p, act='add', place=null, forCrop=false){
   const e=expiryState(p); const q=place?at(p,place):p.qty;
-  return `<button class="prod cat-${esc(p.cat||'other')}" data-a="${act}" data-id="${p.id}">
+  return `<button class="prod cat-${esc(p.cat||'other')}${forCrop?' forcrop':''}" data-a="${act}" data-id="${p.id}">
     <span class="ic">${catIcon(p.cat)}</span>
     <span class="nm">${esc(p.name)}</span>
     <span class="pk">${esc(p.pack||'')}${p.batch?' · B:'+esc(p.batch):''}</span>${p.content?`<span class="pk">${esc(p.content)}</span>`:''}
@@ -1038,6 +1206,9 @@ function vSettings(){
    ${ISOWNER?`<label class="f w"><span><input type="checkbox" id="sHide" ${sh.staffHide?'checked':''} style="width:22px;height:22px;vertical-align:middle"> సిబ్బందికి లాభం, ఖాతాలు చూపించవద్దు · Hide accounts &amp; profit from staff</span></label>`:''}
   </div>
   <button class="act ghost" data-go="lic">${I.badge} లైసెన్సులు · Licences are here</button></div>
+  ${(()=>{ const th=cropTheme(); return `<div class="card"><h3>ముఖ్య పంట · Main crop</h3>
+   <div style="display:flex;gap:12px;align-items:center">${th?`<img src="${th.tile}" alt="" style="width:56px;height:56px;border-radius:50%;object-fit:cover">`:''}<div style="flex:1"><b>${th?esc(th.te+' · '+th.en):'ఇంకా ఎంచుకోలేదు · Not picked yet'}</b><div class="note">Sets the home picture and colour, and which products come first when selling. Every product can still be sold.</div></div></div>
+   ${ISOWNER?`<button class="act ghost" data-a="cropPick">${LEAF.replace('<svg','<svg width="26" height="26"')} పంట మార్చండి · Change crop</button>`:''}</div>`; })()}
   ${gstSettingsCard()}
   ${regType()==='regular'?ewbLinkCard():''}
   <div class="card"><h3>గోదాములు · Counter &amp; godowns</h3>
@@ -1087,7 +1258,7 @@ function vDoctor(){
   const recent=S.cases.filter(c=>new Date(c.t).getTime()>since);
   const tally={}; recent.forEach(c=>{ const p=(c.dx&&c.dx.problems&&c.dx.problems[0]); if(!p) return; const k=(cropName(c.crop).split('·')[0].trim())+' – '+(p.name_te||p.name_en); tally[k]=(tally[k]||0)+1; });
   const top=Object.entries(tally).sort((a,b)=>b[1]-a[1]).slice(0,5);
-  const dc=S.dxCrop||'';
+  const dc=S.dxCrop||S.shop.crop||'';
   return `<button class="speak" data-a="help">${I.speaker}<span>వినండి · Tap to hear how</span></button>
   <div class="sect">ఏ పంట? · Which crop?</div>
   <div class="chips" style="flex-wrap:wrap">${CROPS.map(([k,v])=>`<button class="chip ${dc===k?'on':''}" data-a="dxCrop" data-c="${k}">${v}</button>`).join('')}</div>
@@ -1139,10 +1310,10 @@ async function diagnose(blob){
   readDxForm();
   busy('పంటను చూస్తోంది… Checking the crop');
   try{
-    const crop=S.dxCrop?cropName(S.dxCrop):'';
+    const crop=(S.dxCrop||S.shop.crop)?cropName(S.dxCrop||S.shop.crop):'';
     const x=await ask(P_DX(crop, S.dxNote, S.dxF), [blob]);
     const thumb=await thumbOf(blob).catch(()=>null);
-    S.dx={id:nid('c'), t:new Date().toISOString(), crop:S.dxCrop||'other', farmer:S.dxF||'', village:S.dxV||'', note:S.dxNote||'', thumb, dx:x, by:ME||null, saved:false};
+    S.dx={id:nid('c'), t:new Date().toISOString(), crop:S.dxCrop||S.shop.crop||'other', farmer:S.dxF||'', village:S.dxV||'', note:S.dxNote||'', thumb, dx:x, by:ME||null, saved:false};
     closeSheet(); window.scrollTo(0,0); render(); if(x.summary_te) say(x.summary_te);
   }catch(e){ closeSheet(); toast(aiError(e)); }
 }
@@ -2643,6 +2814,8 @@ function act(a,b){
     case 'ptSay': { const l=LESSONS.find(x=>x.id===S.lesson); if(l) say(l.pts[+b.dataset.i][0]); break; }
     case 'lessonDone': S.shop.learned={...(S.shop.learned||{}), [S.lesson]:true}; saveShop(); S.lesson=null; render(); toast('బాగుంది! · Well done'); break;
     case 'demo': loadDemo(); break;
+    case 'cropPick': cropPicker(false); break;
+    case 'cropTip': { const th=cropTheme(); if(th) say(th.tipTe); break; }
     case 'sellPhoto': takePhoto(blob=>sellFromPhoto(blob)); break;
     case 'sellMic': micToggle(b, t=>sellFromText(t)); break;
     case 'nameMic': micToggle(b, t=>{ cart().farmer=t; const el=$('#fName'); if(el) el.value=t; }); break;

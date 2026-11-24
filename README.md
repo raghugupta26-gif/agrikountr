@@ -109,3 +109,7 @@ cd desktop && npm install --omit=dev && node server.js
 Sync rules: whole documents, last write wins, except stock by place and party dues, which travel as
 changes (−1 bag, +₹500) so offline devices never overwrite each other. Each phone has its own invoice
 series (e.g. `KK/26-27/MAB3-0001`), so offline bills never share a number.
+
+## Main crop (first run)
+
+The first time the owner opens the app, it asks for the main crop around the shop (paddy, cotton, chilli, maize, turmeric, red gram, groundnut, soybean). A short starter animation plays once; tap to skip. The crop sets the home picture, the header colour, the season tip, the crop doctor's default crop, and which products are listed first on the sell screen. Every product can still be sold. Change it any time in Shop details → Main crop. Crop pictures are in `web/img/crops/` (paddy is a photo; the others are drawings until real photos are added: replace `<crop>.webp` and `<crop>-t.jpg`). Crop data and the words that pick "products for this crop" are in `CROPTHEME` in `web/packs/agri.js`.
